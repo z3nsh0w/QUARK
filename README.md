@@ -24,7 +24,7 @@
 - ⚡ Performance improvements  
 - ✨ Drag-and-drop support  
 
-### 💡 Future Ideas (Dream Big!):  
+### 💡 Future Ideas (My dreams):  
 - 📹 Video playback support  
 - ⬇️ FLAC downloads from open sources  
 - 🌐 Spotify/Deezer API integration (*years in the making…*)  
