@@ -11,8 +11,6 @@
 
 ---
 
-
-
 **Tech Stack**:  
  Powered by **Flutter**  
  Cross-platform (only-desktop) (Windows/Linux/macOS)  
@@ -33,10 +31,10 @@
 
 ---
 
-## 🛠 Installation  
-1. **From Source**:  
-```bash
-git clone https://github.com/Musician/musician.git
-cd musician
-flutter pub get
-flutter run
+## 🛠 Installation :
+**STEPS:**
+ - Download source
+ - Create flutter project
+ - run `flutter build {your_operating_system}`
+ - run `flutter pub get`
+ - run `flutter run`
