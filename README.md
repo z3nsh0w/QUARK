@@ -1,5 +1,6 @@
-🚨 #WARNING: THIS REPO IS FOR SOURCE CODE ONLY
-🚨 #If You want to download finished and compiled files you need to go to the releases tab
+🚨
+# WARNING: THIS REPO IS FOR SOURCE CODE ONLY
+# If You want to download finished and compiled files you need to go to the releases tab
 
 
 # Musician 
