@@ -5,20 +5,23 @@ import 'package:file_picker/file_picker.dart';
 import 'playlist_page.dart';
 
 Future<void> main() async {
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'test build',
+      title: 'Musician',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      debugShowCheckedModeBanner: false,
+      home: const MyHomePage(),
     );
   }
 }
@@ -26,8 +29,7 @@ class MyApp extends StatelessWidget {
 
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -109,8 +111,10 @@ class _MyHomePageState extends State<MyHomePage> {
         files = fileNames.map((path) => path.split('/').last).toList();
         selectedFiles = fileNames;
       });
+      log.info(fileNames[1]);
+      
     } catch (e) {
-      print('Ошибка при получении списка файлов: $e');
+       log.info(emptyTextSelectionControls);
     }
   }
 
