@@ -1,11 +1,9 @@
 # Musician 
 
-
-### WARNING: THIS REPO IS FOR SOURCE CODE ONLY
-### If You want to download finished and compiled files you need to go to the releases tab
-
-
-**An open-source music player without the bloat**  
+## 🚨 WARNING: THIS REPO IS FOR SOURCE CODE ONLY
+**At the moment there are no ready-made window layouts for operating systems (folders windows, linux macos).**
+**The product is in pre-alpha testing, from which it will be released in patch 0.99 ;)**
+**If You want to download finished and compiled files you need to go to the releases tab**
 
 ## 🚀 About  
 **Musician is an open-source music player without the bloat.**
@@ -29,10 +27,10 @@
 - ⚡ Performance improvements  
 - ✨ Drag-and-drop support  
 
-### 💡 Future Ideas (My dreams):  
+### 💡 Future Ideas (dreams):  
 - 📹 Video playback support  
 - ⬇️ FLAC downloads from open sources  
-- 🌐 Spotify/Deezer API integration (*years in the making…*)  
+- 🌐 Spotify/Deezer API integration
 
 ---
 
@@ -40,6 +38,6 @@
 **STEPS:**
  - Download source
  - Create flutter project
- - run `flutter build {your_operating_system}`
  - run `flutter pub get`
+ - run `flutter build {your_operating_system}`
  - run `flutter run`
