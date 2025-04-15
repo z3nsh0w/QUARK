@@ -7,24 +7,24 @@ import 'dart:typed_data';
 import 'package:flutter_media_metadata/flutter_media_metadata.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:player_project/styles.dart';
+import 'package:interactive_slider/interactive_slider.dart';
+import 'package:flutter/cupertino.dart';
 
 final log = Logger('ExampleLogger');
 
-
-
 // class AudioManager {
 //   static final AudioManager _instance = AudioManager._internal();
-  
+
 //   factory AudioManager() {
 //     return _instance;
 //   }
-  
+
 //   AudioManager._internal();
-  
+
 //   final recorderController = RecorderController();
 //   final playerController = PlayerController();
 //   final audioPlayer = AudioPlayer();
-  
+
 //   void dispose() {
 //     recorderController.dispose();
 //     playerController.dispose();
@@ -32,22 +32,17 @@ final log = Logger('ExampleLogger');
 //   }
 // }
 
-
-
 // INSTANCES
 
 final RecorderController recorderController = RecorderController();
 final PlayerController playerController = PlayerController();
-bool _isSettingsHovered = false;
+final _controllerSlider = InteractiveSliderController(0.5);
 
 // INSTANCES
-
-
 
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
   const PlaylistPage({super.key, required this.songs});
-
 
   @override
   State<PlaylistPage> createState() => _PlaylistPageState();
@@ -56,17 +51,15 @@ class PlaylistPage extends StatefulWidget {
 class _PlaylistPageState extends State<PlaylistPage> {
   double _volumeValue = 0.25;
   bool _isPlaying = false;
-  bool _shuffle_enabled = false;  //
-  bool _repeater_status = false;  // dodelat' pidarasa
+  bool _shuffle_enabled = false; //
+  bool _repeater_status = false; // dodelat' pidarasa
 
   final player = AudioPlayer();
 
-
- // FIELDS
+  // FIELDS
 
   Uint8List imageData = Uint8List.fromList([]);
 
-  
   int nowPlayingIndex = 0;
   String _trackName = '';
   String _trackArtist = '';
@@ -85,14 +78,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
   List<String>? trackArtistNames = [];
   String startup_track = '';
 
-// FIELDS
-
-
+  // FIELDS
 
   void _initializeWaveform() async {
     try {
-
-
       if (widget.songs.isEmpty) {
         print("кто здесь");
         return;
@@ -102,7 +91,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
       print(path);
 
-      
       if (!File(path).existsSync()) {
         print("нет никого");
         return;
@@ -111,26 +99,23 @@ class _PlaylistPageState extends State<PlaylistPage> {
       playerController.preparePlayer(
         path: path,
         volume: 0,
-        shouldExtractWaveform: true
+        shouldExtractWaveform: true,
       );
 
-      
       final waveformData = await playerController.extractWaveformData(
         path: path,
       );
-      
+
       if (waveformData.isEmpty) {
-          print("кто здесь гандоны");
-          return;
-        }
+        print("кто здесь гандоны");
+        return;
+      }
 
-      setState( () {} );
-
+      setState(() {});
     } catch (e) {
       print(e);
     }
   }
-
 
   Future<Map<String, dynamic>> _loadTag_using_dart_tags() async {
     try {
@@ -186,14 +171,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
       };
 
       return all_tags;
-
-
     } catch (e) {
       log.severe('Error loading tag: $e');
       return {};
     }
-  } 
-
+  }
 
   void _setupPlayerListeners() {
     player.onPlayerComplete.listen((_) async {
@@ -220,7 +202,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
             a['trackArtistNames'][0]?.isEmpty ?? true
                 ? ['Unknown']
                 : a['trackArtistNames'];
-        imageData = a['albumArt'] ?? '/Users/aror/Documents/music/flacMusic/Radiohead - In Rainbows (2007) [FLAC] {XL Recordings XL1247CDJP}/Artwork/13.jpg';
+        imageData =
+            a['albumArt'] ??
+            '/Users/aror/Documents/music/flacMusic/Radiohead - In Rainbows (2007) [FLAC] {XL Recordings XL1247CDJP}/Artwork/13.jpg';
       });
     });
   }
@@ -231,8 +215,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
     _setupPlayerListeners();
     // _initializeWaveform();
   }
-
-
 
   @override
   void dispose() {
@@ -279,7 +261,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 return FadeTransition(opacity: animation, child: child);
               },
               child: BackdropFilter(
+
                 key: ValueKey<Uint8List>(imageData),
+
+
                 filter: ImageFilter.blur(sigmaX: 95.0, sigmaY: 95.0),
                 child: Container(
                   color: Colors.transparent,
@@ -288,8 +273,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                     children: [
                       Container(
-                        height: 200,
-                        width: 200,
+                        height: 250,
+                        width: 250,
                         decoration: BoxDecoration(
                           image: DecorationImage(
                             image: MemoryImage(imageData),
@@ -312,32 +297,46 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                       SizedBox(height: 35),
 
-                      AnimatedSwitcher(
-                        duration: Duration(milliseconds: 1000),
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: child,
-                          );
-                        },
-                        child: Text(
-                          _trackName,
-                          key: ValueKey(_trackName),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
+                      Column(
+                        children: [
+                          AnimatedSwitcher(
+                            duration: Duration(milliseconds: 500),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              _trackName,
+                              key: ValueKey(_trackName),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
 
-                      Text(
-                        trackArtistNames?.join(', ') ?? 'Unknown',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w300,
-                        ),
+                          AnimatedSwitcher(
+                            duration: Duration(milliseconds: 500),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: child,
+                              );
+                            },
+                            child: Text(
+                              trackArtistNames?.join(', ') ?? 'Unknown',
+                              key: ValueKey(trackArtistNames?.join()),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
 
                       SizedBox(height: 35),
@@ -362,15 +361,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                   }
                                 });
                                 player.stop();
-                                
 
-                                if (_isPlaying) {                                
-                                  
+                                if (_isPlaying) {
                                   player.play(
                                     DeviceFileSource(
                                       widget.songs[nowPlayingIndex],
                                     ),
-                                  );                        
+                                  );
                                 }
 
                                 Map<String, dynamic> a =
@@ -560,7 +557,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       //     enableSeekGesture: true
                       //   ),
                       // ),
-
                       Padding(
                         padding: EdgeInsets.symmetric(horizontal: 40),
                         child: Row(
@@ -571,36 +567,34 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               color: Colors.white,
                               size: 20,
                             ),
-                            SizedBox(width: 10),
-
+                            
 
                             Container(
-                              width: 200,
-                              child: SliderTheme(
-                                data: SliderThemeData(
-                                  activeTrackColor: Colors.white,
-                                  inactiveTrackColor: Colors.white.withOpacity(
-                                    0.3,
-                                  ),
-                                  thumbColor: Colors.transparent,
-                                  overlayColor: Colors.transparent,
-                                  trackHeight: 12.5,
-                                  thumbShape: SliderComponentShape.noThumb,
-                                  overlayShape: SliderComponentShape.noOverlay,
-                                ),
-                                child: Slider(
-                                  value: _volumeValue,
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _volumeValue = value;
-                                      player.setVolume(_volumeValue);
-                                    });
-                                    print(_volumeValue);
-                                  },
-                                ),
+                              width: 250,
+
+                              
+
+                              child: InteractiveSlider(
+                                 unfocusedOpacity: 1,
+                                unfocusedHeight: 5,
+                                focusedHeight: 10,
+                                enabled: true,
+                                backgroundColor: Color.fromARGB(255, 21, 21, 21),
+                                controller: _controllerSlider,
+                                foregroundColor: Colors.white,
+
+                                onChanged: (value) {
+                                  _volumeValue = value;
+                                  player.setVolume(_volumeValue);
+                                  print(value);
+                                },
+                                onProgressUpdated: (value) {
+                                  print("unpressed");
+                                },
                               ),
                             ),
-                            SizedBox(width: 10),
+
+                            SizedBox(width: 0),
                             Icon(
                               Icons.volume_up,
                               color: Colors.white,
@@ -613,141 +607,136 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       SizedBox(height: 20),
 
                       Row(
-                      
-
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          MouseRegion(
-                            onEnter: (_) => setState(() => _isSettingsHovered = true),
-                            onExit: (_) => setState(() => _isSettingsHovered = false),
-                            child: AnimatedOpacity(
-                              opacity: _isSettingsHovered ? 1.0 : 0.0,
-                              duration: Duration(milliseconds: 300),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  // Кнопка плейлиста
-                                  Material(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      onTap: () {},
-                                      child: Container(
-                                        height: 35,
-                                        width: 35,
-                                        decoration: BoxDecoration(
-                                          color: Color.fromRGBO(56, 56, 59, 1),
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: Icon(
-                                          Icons.featured_play_list_outlined,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                          // Кнопка плейлиста
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              onTap: () {},
+                              child: Container(
+                                height: 35,
+                                width: 35,
+                                decoration: BoxDecoration(
+                                  color: Color.fromRGBO(56, 56, 59, 1),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Icon(
+                                  Icons.featured_play_list_outlined,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
 
-                                  SizedBox(width: 15),
+                          SizedBox(width: 15),
 
-                                  // Кнопка перемешивания
-                                  Material(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      onTap: () {
-                                        setState(() {
-                                          _shuffle_enabled = !_shuffle_enabled;
-                                        });
-                                      },
-                                      child: Container(
-                                        height: 35,
-                                        width: 35,
-                                        decoration: BoxDecoration(
-                                          color: Color.fromRGBO(56, 56, 59, 1),
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: Icon(
-                                          _shuffle_enabled ? Icons.shuffle : Icons.shuffle_rounded,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                          // Кнопка перемешивания
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() {
+                                  _shuffle_enabled = !_shuffle_enabled;
+                                });
+                              },
+                              child: Container(
+                                height: 35,
+                                width: 35,
+                                decoration: BoxDecoration(
+                                  color: Color.fromRGBO(56, 56, 59, 1),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Icon(
+                                  _shuffle_enabled
+                                      ? Icons.shuffle
+                                      : Icons.shuffle_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
 
-                                  SizedBox(width: 15),
+                          SizedBox(width: 15),
 
-                                  // Кнопка настроек
-                                  Material(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      onTap: () {},
-                                      child: Container(
-                                        height: 35,
-                                        width: 35,
-                                        decoration: BoxDecoration(
-                                          color: Color.fromRGBO(56, 56, 59, 1),
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: Icon(
-                                          Icons.settings,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                    
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              onTap: () {},
+                              borderRadius: BorderRadius.circular(15),
+                              
 
-                                  SizedBox(width: 15),
 
-                                  // Кнопка повтора
-                                  Material(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      onTap: () {},
-                                      child: Container(
-                                        height: 35,
-                                        width: 35,
-                                        decoration: BoxDecoration(
-                                          color: Color.fromRGBO(56, 56, 59, 1),
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: Icon(
-                                          Icons.repeat_outlined,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
+                              
 
-                                  SizedBox(width: 15),
+                              child: Container(
+                                height: 35,
+                                width: 35,
+                                decoration: BoxDecoration(
+                                  color: Color.fromRGBO(56, 56, 59, 1),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
 
-                                  // Кнопка меню
-                                  Material(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(20),
-                                    child: InkWell(
-                                      onTap: () {},
-                                      child: Container(
-                                        height: 35,
-                                        width: 35,
-                                        decoration: BoxDecoration(
-                                          color: Color.fromRGBO(56, 56, 59, 1),
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: Icon(
-                                          Icons.menu,
-                                          color: Colors.white,
-                                          size: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+
+                                child: Icon(
+                                  Icons.settings,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(width: 15),
+
+                          // Кнопка повтора
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              onTap: () {},
+                              child: Container(
+                                height: 35,
+                                width: 35,
+                                decoration: BoxDecoration(
+                                  color: Color.fromRGBO(56, 56, 59, 1),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Icon(
+                                  Icons.repeat_outlined,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(width: 15),
+
+                          // Кнопка меню
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            child: InkWell(
+                              onTap: () {},
+                              child: Container(
+                                height: 35,
+                                width: 35,
+                                decoration: BoxDecoration(
+                                  color: Color.fromRGBO(56, 56, 59, 1),
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                child: Icon(
+                                  Icons.menu,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
                               ),
                             ),
                           ),

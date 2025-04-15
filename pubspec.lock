@@ -224,6 +224,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.1.2"
+  interactive_slider:
+    dependency: "direct main"
+    description:
+      name: interactive_slider
+      sha256: "0b67d6161335059250141c3bfff82b15fb4f852a797a93d9e4b1234ad27b6655"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.1"
   js:
     dependency: transitive
     description:

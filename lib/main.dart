@@ -48,7 +48,7 @@ class _MyHomePageState extends State<MyHomePage> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PlaylistPage(songs: selectedFiles),
+          builder: (context) =>     PlaylistPage(songs: selectedFiles),
         ),
       );
     }
