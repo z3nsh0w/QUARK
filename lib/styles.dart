@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class SettingsButton extends StatefulWidget {
-  const SettingsButton({Key? key}) : super(key: key);
+  const SettingsButton({super.key});
 
   @override
   State<SettingsButton> createState() => _SettingsButtonState();

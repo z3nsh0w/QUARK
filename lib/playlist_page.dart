@@ -52,7 +52,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   double _volumeValue = 0.25;
   bool _isPlaying = false;
   bool _shuffle_enabled = false; //
-  bool _repeater_status = false; // dodelat' pidarasa
+  final bool _repeater_status = false; // dodelat' pidarasa
 
   final player = AudioPlayer();
 
@@ -62,19 +62,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   int nowPlayingIndex = 0;
   String _trackName = '';
-  String _trackArtist = '';
-  String _album = '';
-  String _albumArtist = '';
-  int _trackNumber = 0;
-  int _albumLength = 0;
-  int _year = 0;
-  String _genre = '';
-  String _authorName = '';
-  String _writerName = '';
-  int _discNumber = 0;
-  String _mimeType = '';
-  int _trackDuration = 0;
-  int _bitrate = 0;
+  final String _trackArtist = '';
+  final String _album = '';
+  final String _albumArtist = '';
+  final int _trackNumber = 0;
+  final int _albumLength = 0;
+  final int _year = 0;
+  final String _genre = '';
+  final String _authorName = '';
+  final String _writerName = '';
+  final int _discNumber = 0;
+  final String _mimeType = '';
+  final int _trackDuration = 0;
+  final int _bitrate = 0;
   List<String>? trackArtistNames = [];
   String startup_track = '';
 
@@ -152,7 +152,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       bitrate = bitrate ?? 0;
       albumArt = albumArt ?? Uint8List.fromList([]);
 
-      Map<String, dynamic> all_tags = {
+      Map<String, dynamic> allTags = {
         'trackName': trackName,
         'trackArtistNames': trackArtistNames,
         'albumName': albumName,
@@ -170,7 +170,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         'albumArt': albumArt,
       };
 
-      return all_tags;
+      return allTags;
     } catch (e) {
       log.severe('Error loading tag: $e');
       return {};
@@ -421,9 +421,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                           Material(
                             color: Colors.transparent,
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            borderRadius: BorderRadius.circular(20),
 
                             child: InkWell(
+                              
                               borderRadius: BorderRadius.all(
                                 Radius.circular(10),
                               ),
@@ -569,7 +570,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                             
 
-                            Container(
+                            SizedBox(
                               width: 250,
 
                               
@@ -609,11 +610,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+
+                          
+
                           // Кнопка плейлиста
                           Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
+
+
                             child: InkWell(
+                              splashColor: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              highlightColor: Color.fromRGBO(56, 56, 59, 1),
                               onTap: () {},
                               child: Container(
                                 height: 35,
@@ -636,8 +645,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           // Кнопка перемешивания
                           Material(
                             color: Colors.transparent,
-                            borderRadius: BorderRadius.circular(20),
+                            
                             child: InkWell(
+                              splashColor: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              highlightColor: Color.fromRGBO(56, 56, 59, 1),
+
                               onTap: () {
                                 setState(() {
                                   _shuffle_enabled = !_shuffle_enabled;
@@ -669,11 +682,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             borderRadius: BorderRadius.circular(20),
                             child: InkWell(
                               onTap: () {},
-                              borderRadius: BorderRadius.circular(15),
-                              
+                              splashColor: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              highlightColor: Color.fromRGBO(56, 56, 59, 1),
 
-
-                              
 
                               child: Container(
                                 height: 35,
@@ -700,6 +712,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                             child: InkWell(
+
+                              splashColor: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              highlightColor: Color.fromRGBO(56, 56, 59, 1),
                               onTap: () {},
                               child: Container(
                                 height: 35,
@@ -724,6 +740,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             color: Colors.transparent,
                             borderRadius: BorderRadius.circular(20),
                             child: InkWell(
+                              splashColor: Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                              highlightColor: Color.fromRGBO(56, 56, 59, 1),
+
+                              
                               onTap: () {},
                               child: Container(
                                 height: 35,
