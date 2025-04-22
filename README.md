@@ -2,8 +2,10 @@
 
 **🚨 WARNING:**
 **At the moment there are no ready-made window layouts for operating systems (folders windows, linux macos).**
+
 **Attention! This is a Pre-Alpha version of Quark for testing purposes**
 **It doesn't represent the final quality of the product. Thank you for your understanding and support.**
+
 **Quark is expected to be released with patch 0.78**
 
 ## 🚀 About  
