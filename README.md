@@ -7,17 +7,17 @@
 **Quark is expected to be released with patch 0.78**
 
 ## 🚀 About  
-**Musician is an open-source music player without the bloat.**
+**Quark is an open-source music player without the bloat.**
 **It is a lightweight audio player inspired by the philosophy of **Amberol**. It still has no delusions of grandeur, if you just want to play music available on your local system, then this is your choice.**
 
 ![Musician Screenshot](screenshot.png)
-![Musician Screenshot](screenshot2.png)
+![Musician Screenshot](screenshot1.png)
 
 ---
 
 **Tech Stack**:  
  Powered by **Flutter**  
- Cross-platform (only-desktop) (Windows/Linux/macOS)  
+ Cross-platform (at the moment only-desktop) (Windows/Linux/macOS)  
 
 ---
 
@@ -29,6 +29,7 @@
 - ✨ Drag-and-drop support  
 
 ### 💡 Future Ideas (dreams):  
+- 📱  Phone support
 - 📹 Video playback support  
 - ⬇️ FLAC downloads from open sources  
 - 🌐 Spotify/Deezer API integration
