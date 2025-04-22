@@ -10,8 +10,8 @@
 **Quark is an open-source music player without the bloat.**
 **It is a lightweight audio player inspired by the philosophy of **Amberol**. It still has no delusions of grandeur, if you just want to play music available on your local system, then this is your choice.**
 
-![Musician Screenshot](screenshot.png)
 ![Musician Screenshot](screenshot1.png)
+![Musician Screenshot](screenshot2.png)
 
 ---
 
