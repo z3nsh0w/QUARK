@@ -5,20 +5,23 @@ import 'package:file_picker/file_picker.dart';
 import 'playlist_page.dart';
 
 Future<void> main() async {
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'test build',
+      title: 'QUARK',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      debugShowCheckedModeBanner: false,
+      home: const MyHomePage(),
     );
   }
 }
@@ -26,8 +29,7 @@ class MyApp extends StatelessWidget {
 
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-  final String title;
+  const MyHomePage({super.key});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -141,9 +143,14 @@ class _MyHomePageState extends State<MyHomePage> {
             // BASIC GRADIENT WITHOUT ALBUM IMAGE
             //   
 
+            // colors: [
+            //   Color.fromRGBO(44, 44, 48, 1),          OLD DESIGN
+            //   Color.fromRGBO(34, 34, 38, 1),
+            // ],            
+            
             colors: [
-              Color.fromRGBO(44, 44, 48, 1),
-              Color.fromRGBO(34, 34, 38, 1),
+              Color.fromRGBO(24, 24, 26, 1),
+              Color.fromRGBO(18, 18, 20, 1),
             ],
             begin: Alignment.topLeft, end: Alignment.bottomRight
                 ),
@@ -166,22 +173,32 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/play.png', width: 150, height: 150),
+                    Image.asset('assets/icon.png', width: 150, height: 150),
                     SizedBox(height: 25),
 
 
+                    // SizedBox(
+                    //   width: 400,
+                    //   child: Text(
+                    //     'There is no songs.', 
+                    //     style: TextStyle(color: Colors.white, fontSize: 24), 
+                    //     textAlign: TextAlign.center
+                    //   ),
+                    // ),                    
                     SizedBox(
                       width: 400,
                       child: Text(
-                        'There is no songs.', 
-                        style: TextStyle(color: Colors.white, fontSize: 24), 
+                        'QUARK', 
+                        style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.w700), 
                         textAlign: TextAlign.center
                       ),
                     ),
 
 
 
-                    SizedBox(height: 10),
+                    // SizedBox(height: 10),
+                    SizedBox(height: 30),
+
 
 
 
@@ -200,7 +217,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
 
 
-                    SizedBox(height: 50),
+                    SizedBox(height: 20),
+
+
                     Material(
                       color: Colors.transparent,
                       borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -214,7 +233,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
                           decoration: BoxDecoration(
                             // color: const Color.fromRGBO(56, 56, 59, 1),
-                            color: Colors.blueAccent,
+                            color: const Color.fromARGB(255, 39, 48, 59),
                             borderRadius: BorderRadius.all(Radius.circular(20)),
                           ),
                           child: Center(child: Text('Restore playlist', style: TextStyle(color: Colors.white, fontSize: 18,)),
@@ -244,7 +263,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           width: 350,
 
                           decoration: BoxDecoration(
-                            color: const Color.fromRGBO(56, 56, 59, 1),
+                            color: const Color.fromARGB(255, 40, 40, 42),
                             // color: Colors.blueAccent,
                             borderRadius: BorderRadius.all(Radius.circular(20)),
                           ),
@@ -276,7 +295,7 @@ class _MyHomePageState extends State<MyHomePage> {
                           width: 350,
 
                           decoration: BoxDecoration(
-                            color: const Color.fromRGBO(56, 56, 59, 1),
+                            color: const Color.fromARGB(255, 40, 40, 42),
                             borderRadius: BorderRadius.all(Radius.circular(20)),
                           ),
                           child: Center(child: Text('Add song', style: TextStyle(color: Colors.white, fontSize: 18,)),

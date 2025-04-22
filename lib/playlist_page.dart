@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:logging/logging.dart';
 import 'dart:typed_data';
+import 'package:interactive_slider/interactive_slider.dart';
 import 'package:flutter_media_metadata/flutter_media_metadata.dart';
-import 'package:audio_waveforms/audio_waveforms.dart';
-
-final log = Logger('ExampleLogger');
 
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
@@ -20,25 +17,36 @@ class PlaylistPage extends StatefulWidget {
 class _PlaylistPageState extends State<PlaylistPage> {
   double _volumeValue = 0.7;
   bool _isPlaying = false;
+  bool _shuffle_enabled = false;
+  String _current_position = '0:00';
+
+  double _song_progress = 0.0;
+
+  String _song_duration_widget = '0:00';
 
   final player = AudioPlayer();
 
   Uint8List imageData = Uint8List.fromList([]);
   int nowPlayingIndex = 0;
+
+  bool _is_slider_active = true;
+
+  final _controller = InteractiveSliderController(0.0);
+
   String _trackName = '';
-  String _trackArtist = '';
-  String _album = '';
-  String _albumArtist = '';
-  int _trackNumber = 0;
-  int _albumLength = 0;
-  int _year = 0;
-  String _genre = '';
-  String _authorName = '';
-  String _writerName = '';
-  int _discNumber = 0;
-  String _mimeType = '';
-  int _trackDuration = 0;
-  int _bitrate = 0;
+  // String _trackArtist = '';
+  // String _album = '';
+  // String _albumArtist = '';
+  // int _trackNumber = 0;
+  // int _albumLength = 0;
+  // int _year = 0;
+  // String _genre = '';
+  // String _authorName = '';
+  // String _writerName = '';
+  // int _discNumber = 0;
+  // String _mimeType = '';
+  // int _trackDuration = 0;
+  // int _bitrate = 0;
   List<String>? trackArtistNames = [];
 
   Future<Map<String, dynamic>> _loadTag_using_dart_tags() async {
@@ -129,22 +137,116 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
       return all_tags;
     } catch (e) {
-      log.severe('Error loading tag: $e');
       return {};
     }
   }
 
-  final RecorderController recorderController = RecorderController();
+  void _setupPlayerListeners() {
+    player.onPlayerComplete.listen((_) async {
+      setState(() {
+        nowPlayingIndex++;
+        if (nowPlayingIndex >= widget.songs.length) {
+          nowPlayingIndex = 0;
+        }
+      });
 
-  void get_wave_form() {
-    recorderController.record(path: widget.songs[nowPlayingIndex]);
-    recorderController.refresh();
+      if (_isPlaying) {
+        await player.play(DeviceFileSource(widget.songs[nowPlayingIndex]));
+      }
+
+      Map<String, dynamic> a = await _loadTag_using_dart_tags();
+      setState(() {
+        _trackName =
+            a['trackName']?.isEmpty ?? true
+                ? widget.songs[nowPlayingIndex].split(r'\').last
+                : a['trackName'];
+
+        trackArtistNames =
+            a['trackArtistNames'][0]?.isEmpty ?? true
+                ? ['Unknown']
+                : a['trackArtistNames'];
+        imageData = a['albumArt'];
+      });
+    });
+  }
+
+  void _progress_state() {
+    player.onPositionChanged.listen((position) async {
+      final duration = await player.getDuration();
+      String _duration = '';
+      var current_pos = 0.0;
+
+      if (duration != null) {
+        var time_inminutes = duration.inSeconds ~/ 60;
+        var time_inseconds = duration.inSeconds % 60;
+
+        _duration += '$time_inminutes:';
+
+        if (time_inseconds < 10) {
+          _duration += '0$time_inseconds';
+        } else {
+          _duration += '$time_inseconds';
+        }
+
+        current_pos = position.inMicroseconds / duration.inMicroseconds * 100.0;
+        if (current_pos > 100.0) {
+          current_pos = 100.0;
+        }
+      }
+
+      var time_inminutes = position.inSeconds ~/ 60;
+      var time_inseconds = position.inSeconds % 60;
+
+      String timing = '';
+
+      timing += '$time_inminutes:';
+
+      if (time_inseconds < 10) {
+        timing += '0$time_inseconds';
+      } else {
+        timing += '$time_inseconds';
+      }
+
+      setState(() {
+        _current_position = timing;
+        _song_duration_widget = _duration;
+        _song_progress = current_pos;
+
+        if (_is_slider_active) _controller.value = current_pos / 100;
+      });
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    });
+  }
+
+  Future<int> getSecondsByValue(double value) async {
+    final duration = await player.getDuration();
+    if (duration != null) {
+      return ((value / 100.0) * duration.inSeconds).round();
+    }
+    return 0;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _setupPlayerListeners();
+    _progress_state();
+  }
+
+  @override
+  void dispose() {
+    player.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
+
       body: Center(
         child: Container(
           height: MediaQuery.of(context).size.height,
@@ -156,15 +258,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
               fit: BoxFit.cover,
               colorFilter: ColorFilter.mode(
-                Colors.black.withOpacity(0.25),
+                Colors.black.withOpacity(0.5),
                 BlendMode.darken,
               ),
             ),
-
             gradient: LinearGradient(
               colors: [
-                Color.fromRGBO(44, 44, 48, 1),
-                Color.fromRGBO(34, 34, 38, 1),
+                Color.fromRGBO(24, 24, 26, 1),
+                Color.fromRGBO(18, 18, 20, 1),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -191,6 +292,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             BlendMode.darken,
                           ),
                         ),
+
                         boxShadow: [
                           BoxShadow(
                             color: const Color.fromARGB(255, 21, 21, 21),
@@ -203,24 +305,85 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                     SizedBox(height: 35),
 
-                    Text(
-                      _trackName,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                    SizedBox(
+                      width: 500,
+
+                      child: Text(
+                        _trackName.split(r'\').last,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
+
                     Text(
                       trackArtistNames?.join(', ') ?? 'Unknown',
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.w300,
                       ),
                     ),
 
-                    SizedBox(height: 35),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '$_current_position',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+
+                        SizedBox(
+                          width: 325,
+
+                          child: InteractiveSlider(
+                            controller: _controller,
+
+                            min: 0.0,
+                            max: 100.0,
+                            onProgressUpdated: (value) async {
+                              _is_slider_active = true;
+                              try {
+                                final seconds = await getSecondsByValue(value);
+                                await player.seek(Duration(seconds: seconds));
+                              } catch (e) {
+                                print('Ошибка перемотки: $e');
+                              }
+                            },
+
+                            brightness: Brightness.light,
+                            initialProgress: _song_progress,
+                            iconColor: Colors.white,
+                            gradient: LinearGradient(
+                              colors: [Colors.white, Colors.white],
+                            ),
+                            shapeBorder: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(8),
+                              ),
+                            ),
+
+                            onFocused: (value) => {_is_slider_active = false},
+                          ),
+                        ),
+
+                        Text(
+                          '$_song_duration_widget',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w300,
+                          ),
+                        ),
+                      ],
+                    ),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -255,7 +418,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                 if (a['trackName'] == '') {
                                   _trackName =
                                       widget.songs[nowPlayingIndex]
-                                          .split('/')
+                                          .split(r'\')
                                           .last;
                                 } else {
                                   _trackName = a['trackName'];
@@ -269,12 +432,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                 imageData = a['albumArt'];
                               });
                             },
+
                             child: Container(
                               height: 40,
                               width: 40,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
+
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
@@ -316,12 +481,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                 }
                               });
                             },
+
                             child: Container(
                               height: 50,
                               width: 50,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
@@ -372,7 +538,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                 if (a['trackName'] == '') {
                                   _trackName =
                                       widget.songs[nowPlayingIndex]
-                                          .split('/')
+                                          .split(r'\')
                                           .last;
                                 } else {
                                   _trackName = a['trackName'];
@@ -391,7 +557,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               width: 40,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
@@ -414,48 +580,25 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                     SizedBox(height: 15),
 
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 40),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.volume_down,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                    SizedBox(
+                      width: 325,
 
-                          SizedBox(width: 10),
-                          Container(
-                            width: 200,
-                            child: SliderTheme(
-                              data: SliderThemeData(
-                                activeTrackColor: Colors.white,
-                                inactiveTrackColor: Colors.white.withOpacity(
-                                  0.3,
-                                ),
-                                thumbColor: Colors.transparent,
-                                overlayColor: Colors.transparent,
-                                trackHeight: 12.5,
-                                thumbShape: SliderComponentShape.noThumb,
-                                overlayShape: SliderComponentShape.noOverlay,
-                              ),
-                              child: Slider(
-                                value: _volumeValue,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _volumeValue = value;
-                                    player.setVolume(_volumeValue);
-                                  });
-                                  print(_volumeValue);
-                                },
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(width: 10),
-                          Icon(Icons.volume_up, color: Colors.white, size: 20),
-                        ],
+                      child: InteractiveSlider(
+                        startIcon: const Icon(Icons.volume_down),
+                        endIcon: const Icon(Icons.volume_up),
+                        min: 0.0,
+                        max: 1.0,
+                        brightness: Brightness.light,
+                        initialProgress: _volumeValue,
+                        iconColor: Colors.white,
+                        gradient: LinearGradient(
+                          colors: [Colors.white, Colors.white],
+                        ),
+                        onChanged:
+                            (value) => setState(() {
+                              _volumeValue = value;
+                              player.setVolume(_volumeValue);
+                            }),
                       ),
                     ),
 
@@ -476,7 +619,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               width: 35,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
@@ -503,22 +646,29 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                           child: InkWell(
                             borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () {},
+                            onTap: () {
+                              setState(() {
+                                _shuffle_enabled = !_shuffle_enabled;
+                              });
+                            },
                             child: Container(
                               height: 35,
                               width: 35,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
                               ),
+
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(
-                                    Icons.shuffle,
+                                    _shuffle_enabled
+                                        ? Icons.shuffle
+                                        : Icons.shuffle_outlined,
                                     color: Colors.white,
                                     size: 20,
                                   ),
@@ -542,7 +692,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               width: 35,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
@@ -577,7 +727,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               width: 35,
 
                               decoration: BoxDecoration(
-                                color: const Color.fromRGBO(56, 56, 59, 1),
+                                color: const Color.fromARGB(255, 40, 40, 42),
                                 borderRadius: BorderRadius.all(
                                   Radius.circular(30),
                                 ),
