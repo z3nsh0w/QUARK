@@ -6,9 +6,7 @@ import 'package:logging/logging.dart';
 import 'dart:typed_data';
 import 'package:flutter_media_metadata/flutter_media_metadata.dart';
 import 'package:audio_waveforms/audio_waveforms.dart';
-import 'package:player_project/styles.dart';
 import 'package:interactive_slider/interactive_slider.dart';
-import 'package:flutter/cupertino.dart';
 
 final log = Logger('ExampleLogger');
 
