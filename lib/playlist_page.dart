@@ -15,25 +15,22 @@ class PlaylistPage extends StatefulWidget {
 }
 
 class _PlaylistPageState extends State<PlaylistPage> {
-  double _volumeValue = 0.7;
-  bool _isPlaying = false;
-  bool _shuffle_enabled = false;
   String _current_position = '0:00';
+  String _song_duration_widget = '0:00';
+  String _trackName = '';
 
   double _song_progress = 0.0;
+  double _volumeValue = 0.7;
 
-  String _song_duration_widget = '0:00';
-
-  final player = AudioPlayer();
-
-  Uint8List imageData = Uint8List.fromList([]);
   int nowPlayingIndex = 0;
+  Uint8List imageData = Uint8List.fromList([]);
 
   bool _is_slider_active = true;
-
+  bool _isPlaying = false;
+  bool _shuffle_enabled = false;
+  final player = AudioPlayer();
   final _controller = InteractiveSliderController(0.0);
 
-  String _trackName = '';
   // String _trackArtist = '';
   // String _album = '';
   // String _albumArtist = '';
@@ -71,51 +68,18 @@ class _PlaylistPageState extends State<PlaylistPage> {
       int? bitrate = metadata.bitrate;
       Uint8List? albumArt = metadata.albumArt;
 
-      if (trackName == null) {
-        trackName = 'Unknown';
-      }
-      if (trackArtistNames == null) {
-        trackArtistNames = ['Unknown'];
-      }
-
-      if (albumName == null) {
-        albumName = 'Unknown';
-      }
-      if (albumArtistName == null) {
-        albumArtistName = 'Unknown';
-      }
-
-      if (genre == null) {
-        genre = 'Unknown';
-      }
-
-      if (authorName == null) {
-        authorName = 'Unknown';
-      }
-
-      if (writerName == null) {
-        writerName = 'Unknown';
-      }
-
-      if (discNumber == null) {
-        discNumber = 0;
-      }
-
-      if (mimeType == null) {
-        mimeType = 'Unknown';
-      }
-
-      if (trackDuration == null) {
-        trackDuration = 0;
-      }
-
-      if (bitrate == null) {
-        bitrate = 0;
-      }
-
-      if (albumArt == null) {
-        albumArt = Uint8List.fromList([]);
-      }
+      trackName ??= 'Unknown';
+      trackArtistNames ??= ['Unknown'];
+      albumName ??= 'Unknown';
+      albumArtistName ??= 'Unknown';
+      genre ??= 'Unknown';
+      authorName ??= 'Unknown';
+      writerName ??= 'Unknown';
+      discNumber ??= 0;
+      mimeType ??= 'Unknown';
+      trackDuration ??= 0;
+      bitrate ??= 0;
+      albumArt ??= Uint8List.fromList([]);
 
       Map<String, dynamic> all_tags = {
         'trackName': trackName,
@@ -214,10 +178,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
         if (_is_slider_active) _controller.value = current_pos / 100;
       });
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() {});
-      });
     });
   }
 
@@ -234,6 +194,24 @@ class _PlaylistPageState extends State<PlaylistPage> {
     super.initState();
     _setupPlayerListeners();
     _progress_state();
+
+    _loadTag_using_dart_tags().then((value) {
+      setState(() {
+        print(value['trackName']);
+        if (value['trackName'] == '') {
+          _trackName = widget.songs[nowPlayingIndex].split(r'\').last;
+        } else {
+          _trackName = value['trackName'];
+        }
+
+        if (value['trackArtistNames'][0] == "") {
+          trackArtistNames = ['Unknown'];
+        } else {
+          trackArtistNames = value['trackArtistNames'];
+        }
+        imageData = value['albumArt'];
+      });
+    });
   }
 
   @override
@@ -332,7 +310,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          '$_current_position',
+                          _current_position,
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -354,7 +332,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                 final seconds = await getSecondsByValue(value);
                                 await player.seek(Duration(seconds: seconds));
                               } catch (e) {
-                                print('Ошибка перемотки: $e');
+                                print('ERR: $e');
                               }
                             },
 
