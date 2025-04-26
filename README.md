@@ -39,7 +39,7 @@
 - Possible implementation of automatic search for metadata for your song based on the title, duration and other metadata of the track, and a trained model, on the basis of which the search for metadata from open sources and datasets will be carried out.  
 - Creating a beautiful website for downloading the application.  
 
-## 💡 Dreams update:  
+## Dreams update:  
 - Phone support
 - Video playback support  
 - FLAC downloads from open sources  
