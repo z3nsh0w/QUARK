@@ -23,25 +23,34 @@
 
 ---
 
-## 🗺️ Roadmap :
+# QUARK Roadmap :
 
-### 🔥 Coming Soon:  
-- 🗃️ Optimized database for playlists  
-- ⚡ Performance improvements  
-- ✨ Drag-and-drop support  
+## Coming Soon:  
+- Optimized database for playlists  
+- Performance improvements  
+- Drag-and-drop support  
+- Multiple interface settings
+- Adding a micro tour to the app on first launch.  
+- Change of design concept?  
+- Create a beautiful app installer with the ability to automatically update the app.  
 
-### 💡 Future Ideas (dreams):  
-- 📱  Phone support
-- 📹 Video playback support  
-- ⬇️ FLAC downloads from open sources  
-- 🌐 Spotify/Deezer API integration
+## Future huge updates (Patch 1.1-1.9.9)
+- Addition of QUARK TAG firmware for built-in and convenient customization of audio file metadata.  
+- Possible implementation of automatic search for metadata for your song based on the title, duration and other metadata of the track, and a trained model, on the basis of which the search for metadata from open sources and datasets will be carried out.  
+- Creating a beautiful website for downloading the application.  
 
----
+## 💡 Dreams update:  
+- Phone support
+- Video playback support  
+- FLAC downloads from open sources  
+- Spotify/Deezer 
 
-## 🛠 Installation :
-**STEPS:**
- - Download source
- - Create flutter project
- - run `flutter pub get`
- - run `flutter build {your_operating_system}`
- - run `flutter run`
+
+# Installation
+```bash
+1. Clone source repository
+2. Create Flutter project
+3. flutter pub get
+4. flutter build {your_os}
+5. flutter run
+```
