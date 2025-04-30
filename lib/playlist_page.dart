@@ -5,8 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
 import 'package:interactive_slider/interactive_slider.dart';
 import 'package:flutter_media_metadata/flutter_media_metadata.dart';
-
-
+import 'dart:math';
 
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
@@ -111,7 +110,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
   void _setupPlayerListeners() {
     player.onPlayerComplete.listen((_) async {
       setState(() {
-        nowPlayingIndex++;
+        
+        if (_is_repeater_active)
+        { nowPlayingIndex = nowPlayingIndex; }
+        else { nowPlayingIndex++; }
+        
+
+
         if (nowPlayingIndex >= widget.songs.length) {
           nowPlayingIndex = 0;
         }
@@ -254,18 +259,16 @@ class _PlaylistPageState extends State<PlaylistPage> {
           ),
 
           child: ClipRect(
-
-          child: AnimatedSwitcher(
+            child: AnimatedSwitcher(
               duration: Duration(milliseconds: 1000),
               transitionBuilder: (Widget child, Animation<double> animation) {
                 return FadeTransition(opacity: animation, child: child);
               },
               child: BackdropFilter(
-
                 key: ValueKey<Uint8List>(imageData),
 
-
                 filter: ImageFilter.blur(sigmaX: 95.0, sigmaY: 95.0),
+
                 child: Container(
                   color: Colors.transparent,
                   child: Column(
@@ -294,226 +297,110 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           ],
                         ),
                       ),
-                
 
-                    SizedBox(height: 35),
+                      SizedBox(height: 35),
 
-                    SizedBox(
-                      width: 500,
+                      SizedBox(
+                        width: 500,
 
-                      child: Text(
-                        _trackName.split(r'\').last,
-                        textAlign: TextAlign.center,
+                        child: Text(
+                          _trackName.split(r'\').last,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+
+                      Text(
+                        trackArtistNames?.join(', ') ?? 'Unknown',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w300,
                         ),
                       ),
-                    ),
 
-                    Text(
-                      trackArtistNames?.join(', ') ?? 'Unknown',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          _current_position,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w300,
-                          ),
-                        ),
-
-                        SizedBox(
-                          width: 325,
-
-                          child: InteractiveSlider(
-                            controller: _controller,
-                            unfocusedHeight: 5,
-                            focusedHeight: 10,
-                            min: 0.0,
-                            max: 100.0,
-                            onProgressUpdated: (value) async {
-                              _is_slider_active = true;
-                              try {
-                                final seconds = await getSecondsByValue(value);
-                                await player.seek(Duration(seconds: seconds));
-                              } catch (e) {
-                                print('ERR: $e');
-                              }
-                            },
-
-                            brightness: Brightness.light,
-                            initialProgress: _song_progress,
-                            iconColor: Colors.white,
-                            gradient: LinearGradient(
-                              colors: [Colors.white, Colors.white],
-                            ),
-                            shapeBorder: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(8),
-                              ),
-                            ),
-
-                            onFocused: (value) => {_is_slider_active = false},
-                          ),
-                        ),
-
-                        Text(
-                          '$_song_duration_widget',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w300,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () async {
-                              setState(() {
-                                nowPlayingIndex--;
-                                if (nowPlayingIndex < 0) {
-                                  nowPlayingIndex = widget.songs.length - 1;
-                                }
-                              });
-                              player.stop();
-                              if (_isPlaying) {
-                                player.play(
-                                  DeviceFileSource(
-                                    widget.songs[nowPlayingIndex],
-                                  ),
-                                );
-                              }
-
-                              Map<String, dynamic> a =
-                                  await _loadTag_using_dart_tags();
-
-                              setState(() {
-                                print(a['trackName']);
-                                if (a['trackName'] == '') {
-                                  _trackName =
-                                      widget.songs[nowPlayingIndex]
-                                          .split(r'\')
-                                          .last;
-                                } else {
-                                  _trackName = a['trackName'];
-                                }
-
-                                if (a['trackArtistNames'][0] == "") {
-                                  trackArtistNames = ['Unknown'];
-                                } else {
-                                  trackArtistNames = a['trackArtistNames'];
-                                }
-                                imageData = a['albumArt'];
-                              });
-                            },
-
-                            child: Container(
-                              height: 40,
-                              width: 40,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.skip_previous,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ],
-                              ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _current_position,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w300,
                             ),
                           ),
-                        ),
 
-                        SizedBox(width: 15),
+                          SizedBox(
+                            width: 325,
 
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () {
-                              setState(() {
-                                _isPlaying = !_isPlaying;
-
-                                if (!_isPlaying) {
-                                  player.pause();
-                                } else {
-                                  player.play(
-                                    DeviceFileSource(
-                                      widget.songs[nowPlayingIndex],
-                                    ),
+                            child: InteractiveSlider(
+                              controller: _controller,
+                              unfocusedHeight: 5,
+                              focusedHeight: 10,
+                              min: 0.0,
+                              max: 100.0,
+                              onProgressUpdated: (value) async {
+                                _is_slider_active = true;
+                                try {
+                                  final seconds = await getSecondsByValue(
+                                    value,
                                   );
+                                  await player.seek(Duration(seconds: seconds));
+                                } catch (e) {
+                                  print('ERR: $e');
                                 }
-                              });
-                            },
+                              },
 
-                            child: Container(
-                              height: 50,
-                              width: 50,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
+                              brightness: Brightness.light,
+                              initialProgress: _song_progress,
+                              iconColor: Colors.white,
+                              gradient: LinearGradient(
+                                colors: [Colors.white, Colors.white],
+                              ),
+                              shapeBorder: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
+                                  Radius.circular(8),
                                 ),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    _isPlaying ? Icons.pause : Icons.play_arrow,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
-                                ],
-                              ),
+
+                              onFocused: (value) => {_is_slider_active = false},
                             ),
                           ),
-                        ),
 
-                        SizedBox(width: 15),
+                          Text(
+                            '$_song_duration_widget',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w300,
+                            ),
+                          ),
+                        ],
+                      ),
 
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
 
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () async {
-                              setState(() {
-                                nowPlayingIndex++;
-                                if (nowPlayingIndex >= widget.songs.length) {
-                                  nowPlayingIndex = 0;
-                                }
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: () async {
+                                setState(() {
+                                  nowPlayingIndex--;
+                                  if (nowPlayingIndex < 0) {
+                                    nowPlayingIndex = widget.songs.length - 1;
+                                  }
+                                });
                                 player.stop();
                                 if (_isPlaying) {
                                   player.play(
@@ -522,275 +409,461 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                     ),
                                   );
                                 }
-                              });
 
-                              Map<String, dynamic> a =
-                                  await _loadTag_using_dart_tags();
+                                Map<String, dynamic> a =
+                                    await _loadTag_using_dart_tags();
 
-                              setState(() {
-                                print(a['trackName']);
-                                if (a['trackName'] == '') {
-                                  _trackName =
-                                      widget.songs[nowPlayingIndex]
-                                          .split(r'\')
-                                          .last;
-                                } else {
-                                  _trackName = a['trackName'];
-                                }
+                                setState(() {
+                                  print(a['trackName']);
+                                  if (a['trackName'] == '') {
+                                    _trackName =
+                                        widget.songs[nowPlayingIndex]
+                                            .split(r'\')
+                                            .last;
+                                  } else {
+                                    _trackName = a['trackName'];
+                                  }
 
-                                if (a['trackArtistNames'][0] == "") {
-                                  trackArtistNames = ['Unknown'];
-                                } else {
-                                  trackArtistNames = a['trackArtistNames'];
-                                }
-                                imageData = a['albumArt'];
-                              });
-                            },
-                            child: Container(
-                              height: 40,
-                              width: 40,
+                                  if (a['trackArtistNames'][0] == "") {
+                                    trackArtistNames = ['Unknown'];
+                                  } else {
+                                    trackArtistNames = a['trackArtistNames'];
+                                  }
+                                  imageData = a['albumArt'];
+                                });
+                              },
 
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.skip_next,
-                                    color: Colors.white,
-                                    size: 24,
+                              child: Container(
+                                height: 40,
+                                width: 40,
+
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 40, 40, 42),
+
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
                                   ),
-                                ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.skip_previous,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
 
-                    SizedBox(height: 15),
+                          SizedBox(width: 15),
 
-                    SizedBox(
-                      width: 325,
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
 
-                      child: InteractiveSlider(
-                        startIcon: const Icon(Icons.volume_down),
-                        endIcon: const Icon(Icons.volume_up),
-                        min: 0.0,
-                        max: 1.0,
-                        brightness: Brightness.light,
-                        initialProgress: _volumeValue,
-                        iconColor: Colors.white,
-                        gradient: LinearGradient(
-                          colors: [Colors.white, Colors.white],
-                        ),
-                        onChanged:
-                            (value) => setState(() {
-                              _volumeValue = value;
-                              player.setVolume(_volumeValue);
-                            }),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: () {
+                                setState(() {
+                                  _isPlaying = !_isPlaying;
+
+                                  if (!_isPlaying) {
+                                    player.pause();
+                                  } else {
+                                    player.play(
+                                      DeviceFileSource(
+                                        widget.songs[nowPlayingIndex],
+                                      ),
+                                    );
+                                  }
+                                });
+                              },
+
+                              child: Container(
+                                height: 50,
+                                width: 50,
+
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 40, 40, 42),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      _isPlaying
+                                          ? Icons.pause
+                                          : Icons.play_arrow,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          SizedBox(width: 15),
+
+                          // NEXT SONG BUTTON
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: () async {
+                                setState(() {
+                                  final _random = new Random();
+
+                                  if (_shuffle_enabled) {
+                                    nowPlayingIndex = _random.nextInt(
+                                      widget.songs.length.toInt(),
+                                    );
+                                  } else {
+                                    nowPlayingIndex++;
+                                  }
+
+                                  if (nowPlayingIndex >= widget.songs.length) {
+                                    nowPlayingIndex = 0;
+                                  }
+                                  player.stop();
+                                  if (_isPlaying) {
+                                    player.play(
+                                      DeviceFileSource(
+                                        widget.songs[nowPlayingIndex],
+                                      ),
+                                    );
+                                  }
+                                });
+
+                                Map<String, dynamic> a =
+                                    await _loadTag_using_dart_tags();
+
+                                setState(() {
+                                  print(a['trackName']);
+                                  if (a['trackName'] == '') {
+                                    _trackName =
+                                        widget.songs[nowPlayingIndex]
+                                            .split(r'\')
+                                            .last;
+                                  } else {
+                                    _trackName = a['trackName'];
+                                  }
+
+                                  if (a['trackArtistNames'][0] == "") {
+                                    trackArtistNames = ['Unknown'];
+                                  } else {
+                                    trackArtistNames = a['trackArtistNames'];
+                                  }
+                                  imageData = a['albumArt'];
+                                });
+                              },
+                              child: Container(
+                                height: 40,
+                                width: 40,
+
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 40, 40, 42),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.skip_next,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
 
-                    SizedBox(height: 20),
+                      // NEXT SONG BUTTON
+                      SizedBox(height: 15),
 
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                      SizedBox(
+                        width: 325,
 
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            splashColor: Colors.transparent,
-                            highlightColor: Color.fromARGB(255, 40, 40, 42),
-                            onTap: () {},
-                            child: Container(
-                              height: 35,
-                              width: 35,
+                        child: InteractiveSlider(
+                          startIcon: const Icon(Icons.volume_down),
+                          endIcon: const Icon(Icons.volume_up),
+                          min: 0.0,
+                          max: 1.0,
+                          brightness: Brightness.light,
+                          initialProgress: _volumeValue,
+                          iconColor: Colors.white,
+                          gradient: LinearGradient(
+                            colors: [Colors.white, Colors.white],
+                          ),
+                          onChanged:
+                              (value) => setState(() {
+                                _volumeValue = value;
+                                player.setVolume(_volumeValue);
+                              }),
+                        ),
+                      ),
 
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
+                      SizedBox(height: 20),
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.featured_play_list_outlined,
-                                    color: Colors.white,
-                                    size: 20,
+                              splashColor: Colors.transparent,
+                              highlightColor: Color.fromARGB(255, 40, 40, 42),
+                              onTap: () {},
+                              child: Container(
+                                height: 35,
+                                width: 35,
+
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 40, 40, 42),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
                                   ),
-                                ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.featured_play_list_outlined,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        SizedBox(width: 15),
+                          SizedBox(width: 15),
 
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-                          
-                          
                           // SHUFFLITAS
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
 
-                          child: InkWell(
+                            child: InkWell(
                               splashColor: Colors.transparent,
                               borderRadius: BorderRadius.circular(10),
                               highlightColor: Color.fromARGB(255, 40, 40, 42),
 
-                            onTap: () {
-                              setState(() {
-                                _shuffle_enabled = !_shuffle_enabled;
-                                 
-                              });
-                            },
+                              onTap: () {
+                                setState(() {
+                                  _shuffle_enabled = !_shuffle_enabled;
+                                });
+                              },
 
-                            child: Container(
+                              child: Container(
+                                height: 35,
+                                width: 35,
 
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-
-                              child: Row(
-
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    
-                                    _shuffle_enabled
-                                        ? Icons.shuffle
-                                        : Icons.shuffle_outlined,
-                                    
-                                    color: 
-                                      _shuffle_enabled
-                                          ? Color.fromRGBO(255, 255, 255, 0.500)
-                                          : Color.fromRGBO(255, 255, 255, 1),
-
-                                    size: 20,
+                                decoration: BoxDecoration(
+                                  color: Color.fromARGB(255, 40, 40, 42),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
                                   ),
-                                ],
+                                ),
+
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedSwitcher(
+                                      duration: Duration(milliseconds: 120),
+                                      transitionBuilder: (child, animation) {
+                                        return FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        );
+                                      },
+                                      layoutBuilder:
+                                          (currentChild, previousChildren) =>
+                                              Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  ...previousChildren,
+                                                  if (currentChild != null)
+                                                    currentChild,
+                                                ],
+                                              ),
+                                      child: Icon(
+                                        _shuffle_enabled
+                                            ? Icons.shuffle
+                                            : Icons.shuffle_outlined,
+                                        key: ValueKey<bool>(_shuffle_enabled),
+                                        color:
+                                            _shuffle_enabled
+                                                ? Color.fromRGBO(
+                                                  255,
+                                                  255,
+                                                  255,
+                                                  1,
+                                                )
+                                                : Color.fromRGBO(
+                                                  255,
+                                                  255,
+                                                  255,
+                                                  0.5,
+                                                ),
+                                        size: 20,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                         // SHUFFLITAS
+                          // SHUFFLITAS
+                          SizedBox(width: 75),
 
+                          // REPEATER BUTTON
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
 
-                        SizedBox(width: 75),
-
-
-
-                        // REPEATER BUTTON
-
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            splashColor: Colors.transparent,
-                            highlightColor: Color.fromARGB(255, 40, 40, 42),
-                            onTap: () {
-
-                              setState(() {
-                                _is_repeater_active = !_is_repeater_active;
-                              });
-
-
-                            },
-                            child: Container(
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.repeat_outlined,
-                                    color: 
-                                      _is_repeater_active
-                                          ? Color.fromRGBO(255, 255, 255, 1)
-                                          :  Color.fromRGBO(255, 255, 255, 0.500),
-                                         
-                                    size: 20,
+                              splashColor: Colors.transparent,
+                              highlightColor: Color.fromARGB(255, 40, 40, 42),
+                              onTap: () {
+                                setState(() {
+                                  _is_repeater_active = !_is_repeater_active;
+                                });
+                              },
+                              child: Container(
+                                height: 35,
+                                width: 35,
+
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 40, 40, 42),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
                                   ),
-                                ],
+                                ),
+
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    AnimatedSwitcher(
+                                      duration: Duration(milliseconds: 120),
+                                      transitionBuilder: (child, animation) {
+                                        return FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        );
+                                      },
+                                      layoutBuilder:
+                                          (currentChild, previousChildren) =>
+                                              Stack(
+                                                alignment: Alignment.center,
+                                                children: [
+                                                  ...previousChildren,
+                                                  if (currentChild != null)
+                                                    currentChild,
+                                                ],
+                                              ),
+
+                                      child: Icon(
+                                        Icons.repeat_outlined,
+                                        color:
+                                            _is_repeater_active
+                                                ? Color.fromRGBO(
+                                                  255,
+                                                  255,
+                                                  255,
+                                                  1,
+                                                )
+                                                : Color.fromRGBO(
+                                                  255,
+                                                  255,
+                                                  255,
+                                                  0.500,
+                                                ),
+                                        size: 20,
+                                        key: ValueKey<bool>(_is_repeater_active),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        // REPEATER BUTTON
+                          // REPEATER BUTTON
+                          SizedBox(width: 15),
 
-                        SizedBox(width: 15),
+                          Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
 
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            splashColor: Colors.transparent,
-                            highlightColor: Color.fromARGB(255, 40, 40, 42),
-                            onTap: () {
-                              setState(() {});
-                            },
-                            child: Container(
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.menu,
-                                    color: Colors.white,
-                                    size: 20,
+                              splashColor: Colors.transparent,
+                              highlightColor: Color.fromARGB(255, 40, 40, 42),
+                              onTap: () {
+                                setState(() {});
+                              },
+                              child: Container(
+                                height: 35,
+                                width: 35,
+
+                                decoration: BoxDecoration(
+                                  color: const Color.fromARGB(255, 40, 40, 42),
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(30),
                                   ),
-                                ],
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.menu,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
       ),
-      )
     );
   }
 }
