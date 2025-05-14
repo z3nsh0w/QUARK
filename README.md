@@ -1,4 +1,4 @@
-# ATOM. 
+# escape from quark 
 
 **🚨 WARNING:**  
 **At the moment there are no ready-made window layouts for operating systems (folders windows, linux macos).**  
