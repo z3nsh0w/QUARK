@@ -1,9 +1,6 @@
-# escape from quark 
+# QUARK
 
-**🚨 WARNING:**  
-**At the moment there are no ready-made window layouts for operating systems (folders windows, linux macos).**  
-
-**Attention! This is a Pre-Alpha version of ATOM for testing purposes**  
+**Attention! This is a Pre-Alpha version of QUARK for testing purposes**  
 **It doesn't represent the final quality of the product. Thank you for your understanding and support.**  
 
 **Quark is expected to be released with patch 0.78**
@@ -32,7 +29,7 @@
 - Multiple interface settings
 - Adding a micro tour to the app on first launch.  
 - Change of design concept?  
-- Create a beautiful app installer with the ability to automatically update the app.  
+- Create a beautiful app installer with the ability to automatically update the app. (RELEASE TOMORROW!)  
 
 ## Future huge updates (Patch 1.1-1.9.9)
 - Addition of QUARK TAG firmware for built-in and convenient customization of audio file metadata.  
