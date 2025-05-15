@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
 import 'package:interactive_slider/interactive_slider.dart';
 import 'package:audiotags/audiotags.dart';
-
+import 'package:sidebarx/sidebarx.dart';
 
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
@@ -14,11 +14,14 @@ class PlaylistPage extends StatefulWidget {
   State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
+
 class _PlaylistPageState extends State<PlaylistPage> {
-  // var songs = widget.songs;
+
+  // IF WE CAN MAKE SHIT, WE WILL
+
   List<String> songs = [];
   List<String> shuffledPlaylist = [];
-
+ 
   String currentPosition = '0:00';
   String songDurationWidget = '0:00';
   String _trackName = '';
@@ -36,44 +39,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
   final player = AudioPlayer();
   final _controller = InteractiveSliderController(0.0);
 
-  // String _trackArtist = '';
-  // String _album = '';
-  // String _albumArtist = '';
-  // int _trackNumber = 0;
-  // int _albumLength = 0;
-  // int _year = 0;
-  // String _genre = '';
-  // String _authorName = '';
-  // String _writerName = '';
-  // int _discNumber = 0;
-  // String _mimeType = '';
-  // int _trackDuration = 0;
-  // int _bitrate = 0;
   List<String>? trackArtistNames = [];
+
+  // LOADING METADATA FROM AUDIOFILE 
 
   Future<Map<String, dynamic>> loadTag() async {
     try {
-      // final metadata = await MetadataRetriever.fromFile(
-      //   File(songs[nowPlayingIndex]),
-      // );
-
       Tag? tag = await AudioTags.read(songs[nowPlayingIndex]);
-
-      // String? trackName = tag?.title;
-      // String trackName = tag?.title?.trim() ?? songs[nowPlayingIndex].split(r'\').last;
-      // String? artist = tag?.trackArtist;
-      // List<String> trackArtistNames = artist != null ? [artist] : [];
-      // String? albumName = tag?.album;
-      // String? albumArtistName = tag?.albumArtist;
-      // int? trackNumber = tag?.trackNumber;
-      // int? albumLength = tag?.trackTotal;
-      // int? year = tag?.year;
-      // String? genre = tag?.genre;
-      // int? discNumber = tag?.discNumber;
-
-      
       String trackName = tag?.title?.trim() ?? songs[nowPlayingIndex].split(r'\').last;
-      String artist = tag?.trackArtist ?? 'Unknown';
       List<String> trackArtistNames = tag?.trackArtist?.trim().isNotEmpty == true
           ? tag!.trackArtist!.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList()
           : ['Unknown'];
@@ -84,37 +57,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
       int year = tag?.year ?? 0;
       String genre = tag?.genre?.trim() ?? 'Unknown';
       int? discNumber = tag?.discNumber;
-      Uint8List albumArt = tag?.pictures?.firstOrNull?.bytes ?? Uint8List(0);
-
-      // String? authorName = metadata.authorName;
-      // String? writerName = metadata.writerName;
-      // String? mimeType = metadata.mimeType;
-      // int? trackDuration = metadata.trackDuration;
-      // int? bitrate = metadata.bitrate;      
-      // Uint8List? albumArtWork = metadata.albumArt;
 
       String? authorName = 'metadata.authorName';
       String? writerName = 'metadata.writerName';
       String? mimeType = 'metadata.mimeType';
       int? trackDuration = 0;
       int? bitrate = 0;
-      // final List<Picture>? pictures = tag?.pictures;
-      // Uint8List? albumArt = pictures?.first.bytes;
 
-      // trackName ??= 'Unknown';
-      // trackArtistNames ??= ['Unknown'];
-      // albumName ??= 'Unknown';
-      // albumArtistName ??= 'Unknown';
-      // genre ??= 'Unknown';
-      // authorName ??= 'Unknown';
-      // writerName ??= 'Unknown';
-      // discNumber ??= 0;
-      // mimeType ??= 'Unknown';
-      // trackDuration ??= 0;
-      // bitrate ??= 0;
-      // albumArt ??= Uint8List.fromList([]);
-
-      Uint8List albumArt2 = Uint8List(0); // Пустой Uint8List по умолчанию
+      Uint8List albumArt2 = Uint8List(0);
       if (tag?.pictures != null && tag!.pictures!.isNotEmpty) {
         albumArt2 = tag.pictures!.first.bytes 
         ?? Uint8List(0);
@@ -144,6 +94,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
       return {};
     }
   }
+
+  // // LOADING METADATA FROM AUDIOFILE 
+
+
+  // Functional programming rules! Handling next, play, previous buttons
 
   Future<void> steps({
     bool next_step = false,
@@ -217,6 +172,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
   }
 
+  // //
+
+
+  // WORKING WITH SHUFFLE
+
   Future<void> createNewShuffledPlaylist(
     {
     bool turnOnShuffle = false,
@@ -246,11 +206,15 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
   }
 
+  // //
+
   void _setupPlayerListeners() {
     player.onPlayerComplete.listen((_) async {
         await steps(next_step: true);
     });
   }
+
+  // PROCESSING TRACK PLAYBACK
 
   void progressState() {
     player.onPositionChanged.listen((position) async {
@@ -299,6 +263,9 @@ class _PlaylistPageState extends State<PlaylistPage> {
     });
   }
 
+  // //
+
+
   Future<int> getSecondsByValue(double value) async {
     final duration = await player.getDuration();
     if (duration != null) {
@@ -306,6 +273,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
     }
     return 0;
   }
+
+  // HANDLING PAGE LOADING
 
   @override
   void initState() {
@@ -337,6 +306,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
     });
   }
 
+  // //
+
+  // brrr
+
   @override
   void dispose() {
     player.dispose();
@@ -348,8 +321,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
     return Scaffold(
       backgroundColor: Colors.transparent,
 
-      body: Center(
-        child: Container(
+      body: Row(
+        children: [
+            // SidebarX(
+            // controller: SidebarXController(selectedIndex: 0),
+            // items: const [
+            //   SidebarXItem(icon: Icons.home, label: 'Home'),
+            //   SidebarXItem(icon: Icons.search, label: 'Search'),
+            // ],),
+          
+          
+          Container(
           height: MediaQuery.of(context).size.height,
           width: MediaQuery.of(context).size.width,
 
@@ -501,6 +483,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+                          // PREVIOUS BUTTON
+
                           Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -537,8 +521,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               ),
                             ),
                           ),
+                          // // PREVIOUS BUTTON
+
 
                           SizedBox(width: 15),
+
+                          // PLAY BUTTON
 
                           Material(
                             color: Colors.transparent,
@@ -578,9 +566,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                           ),
 
+                          // // PLAY BUTTON
+
+
                           SizedBox(width: 15),
 
                           // NEXT SONG BUTTON
+
                           Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -618,8 +610,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         ],
                       ),
 
-                      // NEXT SONG BUTTON
+                      // // NEXT SONG BUTTON
+
                       SizedBox(height: 15),
+
+                      // VOLUME SLIDER
 
                       SizedBox(
                         width: 325,
@@ -643,11 +638,17 @@ class _PlaylistPageState extends State<PlaylistPage> {
                         ),
                       ),
 
+                      // // VOLUME SLIDER
+
                       SizedBox(height: 20),
+
+                      // BUTTONS ROW
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
+
+                          // PLAYLIST BUTTON
                           Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -683,9 +684,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                           ),
 
+                          // //PLAYLIST BUTTON
+
                           SizedBox(width: 15),
 
                           // SHUFFLITAS
+
                           Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -770,10 +774,12 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                           ),
 
-                          // SHUFFLITAS
+                          // // SHUFFLITAS
+
                           SizedBox(width: 75),
 
                           // REPEATER BUTTON
+
                           Material(
                             color: Colors.transparent,
                             borderRadius: BorderRadius.all(Radius.circular(20)),
@@ -848,8 +854,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             ),
                           ),
 
-                          // REPEATER BUTTON
+                          // // REPEATER BUTTON
+
                           SizedBox(width: 15),
+
+                          // MENU BUTTON
 
                           Material(
                             color: Colors.transparent,
@@ -861,8 +870,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
                               ),
                               splashColor: Colors.transparent,
                               highlightColor: Color.fromARGB(255, 40, 40, 42),
-                              onTap: () {
-                                setState(() {});
+                              onTap: () async {
+                                await steps(stop_steps: true);
+                                await player.stop();
+                                Navigator.pop(context);
                               },
                               child: Container(
                                 height: 35,
@@ -881,23 +892,27 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                       Icons.menu,
                                       color: Colors.white,
                                       size: 20,
-                                    ), // nu i che tut za huina?
-                                  ], // nu i che tut za huina?
-                                ), // nu i che tut za huina?
-                              ), // nu i che tut za huina?
-                            ), // nu i che tut za huina?
-                          ), // nu i che tut za huina?
-                        ], // nu i che tut za huina?
-                      ), // nu i che tut za huina?
-                    ], // nu i che tut za huina?
-                  ), // nu i che tut za huina?
-                ), // nu i che tut za huina?
-              ), // nu i che tut za huina?
-            ), // nu i che tut za huina?
-          ), // nu i che tut za huina?
-        ), // nu i che tut za huina?
-      ), // nu i che tut za huina?
-    ); // nu i che tut za huina?
-  } // nu i che tut za huina?
-}                 // nu i che tut za huina?
-                 // nu i che tut za huina?
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          // // MENU BUTTON
+                          
+                        ],
+                      ),
+                      // // BUTTONS ROW
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
+  }
+} 
+
