@@ -1,12 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'dart:ui';
-import 'dart:io';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
 import 'package:interactive_slider/interactive_slider.dart';
-import 'package:flutter_media_metadata/flutter_media_metadata.dart';
-
-
+import 'package:audiotags/audiotags.dart';
+import 'package:http/http.dart' as http;
+import 'database.dart' as db;
 
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
@@ -16,75 +16,394 @@ class PlaylistPage extends StatefulWidget {
   State<PlaylistPage> createState() => _PlaylistPageState();
 }
 
-class _PlaylistPageState extends State<PlaylistPage> {
-  String _current_position = '0:00';
-  String _song_duration_widget = '0:00';
+class _PlaylistPageState extends State<PlaylistPage>
+    with TickerProviderStateMixin {
+  void _showPlaylistOverlay() {
+    if (isPlaylistOpened == false) {
+      isPlaylistOpened = true;
+
+      playlistOverlayEntry = OverlayEntry(
+        builder:
+            (context) => Positioned(
+              left: 0,
+              child: SlideTransition(
+                position: playlistOffsetAnimation,
+                child: Material(
+                  color: Colors.transparent,
+                  child: GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      if (details.primaryVelocity! > 100) {
+                        _hidePlaylistOverlay();
+                      }
+                    },
+
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 75, sigmaY: 75),
+                        child: Container(
+                          width: 400,
+                          height: MediaQuery.of(context).size.height,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.only(
+                              topRight: Radius.circular(20),
+                              bottomRight: Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
+                          ),
+                          child: Stack(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 50),
+                                child: FutureBuilder(
+                                  future: getAllTrackWithMetadata(),
+                                  builder: (context, snapshot) {
+                                    final tracks = snapshot.data ?? [];
+
+                                    return ListView.builder(
+                                      itemCount: tracks.length,
+                                      itemBuilder: (context, index) {
+                                        var name = tracks[index]['trackName'];
+                                        var artist =
+                                            tracks[index]['trackArtistNames'][0];
+                                        return ListTile(
+                                          title: Row(
+                                            children: [
+                                              Container(
+                                                height: 55,
+                                                width: 55,
+                                                decoration: BoxDecoration(
+                                                  image: DecorationImage(
+                                                    image: MemoryImage(
+                                                      tracks[index]['albumArt'],
+                                                    ),
+                                                    fit: BoxFit.cover,
+                                                    colorFilter:
+                                                        ColorFilter.mode(
+                                                          Colors.black
+                                                              .withOpacity(0),
+                                                          BlendMode.darken,
+                                                        ),
+                                                  ),
+
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color:
+                                                          const Color.fromARGB(
+                                                            255,
+                                                            21,
+                                                            21,
+                                                            21,
+                                                          ),
+                                                      blurRadius: 10,
+                                                      offset: Offset(5, 10),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              SizedBox(width: 10),
+
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      '$name',
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: Colors.white,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '$artist',
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: Colors.grey,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          onTap: () {
+                                            getAllTrackWithMetadata();
+                                            setState(
+                                              () => nowPlayingIndex = index - 1,
+                                            );
+                                            steps(next_step: true);
+                                          },
+                                        );
+                                      },
+                                    );
+                                  },
+                                ),
+                              ),
+
+                              Positioned(
+                                top: 10,
+                                right: 10,
+                                child: IconButton(
+                                  icon: Icon(
+                                    Icons.close,
+                                    color: Colors.white.withOpacity(0.8),
+                                  ),
+                                  onPressed: _hidePlaylistOverlay,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+      );
+
+      Overlay.of(context).insert(playlistOverlayEntry!);
+      playlistAnimationController.forward();
+    }
+  }
+
+  void _hidePlaylistOverlay() {
+    if (isPlaylistOpened == true) {
+      isPlaylistOpened = false;
+      playlistAnimationController.reverse().then((_) {
+        playlistOverlayEntry?.remove();
+        playlistOverlayEntry = null;
+      });
+    }
+  }
+
+  void _showWarningMetadataOverlay() {
+    warningMetadataOverlayEntry = OverlayEntry(
+      builder:
+          (context) => Positioned(
+            right: 15,
+            top: 15,
+            child: SlideTransition(
+              position: warningMetadataOffsetAnimation,
+              child: Material(
+                color: Colors.transparent,
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity! > 100) {
+                      _hideWarningMetadataOverlay();
+                    }
+                  },
+
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.all(Radius.circular(15)),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 75, sigmaY: 75),
+                      child: Container(
+                        width: 350,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                            width: 1,
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(20),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withOpacity(0.15),
+                              Colors.white.withOpacity(0.05),
+                            ],
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              child: Text(
+                                'Is that correct metadata?',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                ),
+                              ),
+                              padding: EdgeInsets.only(left: 15, top: 15),
+                            ),
+                            SizedBox(height: 10),
+
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                InkWell(
+                                  onTap: _hideWarningMetadataOverlay,
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.done, color: Colors.green),
+                                      Text(
+                                        'Accept',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                SizedBox(width: 30),
+                                InkWell(
+                                  onTap: () {
+                                    _hideWarningMetadataOverlay();
+                                    _trackName = songs[nowPlayingIndex];
+                                    trackArtistNames = ['Unknown'];
+                                    imageData = Uint8List(0);
+                                  },
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.close,
+                                        color: const Color.fromARGB(
+                                          172,
+                                          146,
+                                          43,
+                                          36,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Decline',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+    );
+
+    Overlay.of(context).insert(warningMetadataOverlayEntry!);
+    warningMetadataAnimationController.forward(); // Запускаем анимацию
+  }
+
+  void _hideWarningMetadataOverlay() {
+    warningMetadataAnimationController.reverse().then((_) {
+      warningMetadataOverlayEntry?.remove();
+      warningMetadataOverlayEntry = null;
+    });
+  }
+
+  late AnimationController warningMetadataAnimationController;
+  late Animation<Offset> warningMetadataOffsetAnimation;
+  OverlayEntry? warningMetadataOverlayEntry;
+
+  late AnimationController playlistAnimationController;
+  late Animation<Offset> playlistOffsetAnimation;
+  OverlayEntry? playlistOverlayEntry;
+
+  // IF WE CAN MAKE SHIT, WE WILL
+
+  List<String> songs = [];
+  List<String> shuffledPlaylist = [];
+
+  List<String> fetched_songs = [];
+
+  String currentPosition = '0:00';
+  String songDurationWidget = '0:00';
   String _trackName = '';
 
-  double _song_progress = 0.0;
+  double songProgress = 0.0;
   double _volumeValue = 0.7;
 
   int nowPlayingIndex = 0;
   Uint8List imageData = Uint8List.fromList([]);
 
-  bool _is_repeater_active = false;
-  bool _is_slider_active = true;
+  bool isRepeatEnable = false;
+  bool isSliderActive = true;
+  bool isPlaylistOpened = false;
   bool _isPlaying = false;
-  bool _shuffle_enabled = false;
+  bool isShuffleEnable = false;
   final player = AudioPlayer();
   final _controller = InteractiveSliderController(0.0);
 
-  // String _trackArtist = '';
-  // String _album = '';
-  // String _albumArtist = '';
-  // int _trackNumber = 0;
-  // int _albumLength = 0;
-  // int _year = 0;
-  // String _genre = '';
-  // String _authorName = '';
-  // String _writerName = '';
-  // int _discNumber = 0;
-  // String _mimeType = '';
-  // int _trackDuration = 0;
-  // int _bitrate = 0;
+  final String serverApiURL = '127.0.0.1:5678';
+
   List<String>? trackArtistNames = [];
 
-  Future<Map<String, dynamic>> _loadTag_using_dart_tags() async {
+  // LOADING METADATA FROM AUDIOFILE
+
+  Future<Map<String, dynamic>> loadTag() async {
+    var trackName = songs[nowPlayingIndex].split(r'\').last.split(r'/').last;
     try {
-      final metadata = await MetadataRetriever.fromFile(
-        File(widget.songs[nowPlayingIndex]),
-      );
+      Tag? tag = await AudioTags.read(songs[nowPlayingIndex]);
+      String trackName =
+          tag?.title?.trim() ?? songs[nowPlayingIndex].split(r'\').last;
+      tag?.title?.trim() ?? songs[nowPlayingIndex].split(r'/').last;
 
-      String? trackName = metadata.trackName;
-      List<String>? trackArtistNames = metadata.trackArtistNames;
-      String? albumName = metadata.albumName;
-      String? albumArtistName = metadata.albumArtistName;
-      int? trackNumber = metadata.trackNumber;
-      int? albumLength = metadata.albumLength;
-      int? year = metadata.year;
-      String? genre = metadata.genre;
-      String? authorName = metadata.authorName;
-      String? writerName = metadata.writerName;
-      int? discNumber = metadata.discNumber;
-      String? mimeType = metadata.mimeType;
-      int? trackDuration = metadata.trackDuration;
-      int? bitrate = metadata.bitrate;
-      Uint8List? albumArt = metadata.albumArt;
+      List<String> trackArtistNames =
+          tag?.trackArtist?.trim().isNotEmpty == true
+              ? tag!.trackArtist!
+                  .split(',')
+                  .map((e) => e.trim())
+                  .where((e) => e.isNotEmpty)
+                  .toList()
+              : ['Unknown'];
+      String albumName = tag?.album?.trim() ?? 'Unknown';
+      String albumArtistName = tag?.albumArtist?.trim() ?? 'Unknown';
+      int trackNumber = tag?.trackNumber ?? 0;
+      int albumLength = tag?.trackTotal ?? 0;
+      int year = tag?.year ?? 0;
+      String genre = tag?.genre?.trim() ?? 'Unknown';
+      int? discNumber = tag?.discNumber;
 
-      trackName ??= 'Unknown';
-      trackArtistNames ??= ['Unknown'];
-      albumName ??= 'Unknown';
-      albumArtistName ??= 'Unknown';
-      genre ??= 'Unknown';
-      authorName ??= 'Unknown';
-      writerName ??= 'Unknown';
-      discNumber ??= 0;
-      mimeType ??= 'Unknown';
-      trackDuration ??= 0;
-      bitrate ??= 0;
-      albumArt ??= Uint8List.fromList([]);
+      String? authorName = 'metadata.authorName';
+      String? writerName = 'metadata.writerName';
+      String? mimeType = 'metadata.mimeType';
+      int? trackDuration = 0;
+      int? bitrate = 0;
 
-      Map<String, dynamic> all_tags = {
+      Uint8List albumArt2 = Uint8List(0);
+      if (tag?.pictures != null && tag!.pictures!.isNotEmpty) {
+        albumArt2 = tag.pictures!.first.bytes ?? Uint8List(0);
+      }
+
+      Map<String, dynamic> allTags = {
         'trackName': trackName,
         'trackArtistNames': trackArtistNames,
         'albumName': albumName,
@@ -99,45 +418,180 @@ class _PlaylistPageState extends State<PlaylistPage> {
         'mimeType': mimeType,
         'trackDuration': trackDuration,
         'bitrate': bitrate,
-        'albumArt': albumArt,
+        'albumArt': albumArt2,
       };
 
-      return all_tags;
+      return allTags;
     } catch (e) {
-      return {};
+      return {
+        'trackName': trackName,
+        'trackArtistNames': ['Unknown'],
+        'albumArt': Uint8List(0),
+      };
     }
   }
 
-  void _setupPlayerListeners() {
-    player.onPlayerComplete.listen((_) async {
+  Future<Uint8List> urlImageToUint8List(String imageUrl) async {
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to load image: ${response.statusCode}');
+      }
+    } catch (e) {
+      return Uint8List(0);
+    }
+  }
+  // // LOADING METADATA FROM AUDIOFILE
+
+  // Functional programming rules! Handling next, play, previous buttons
+
+  Future<void> steps({
+    bool next_step = false,
+    bool previous_step = false,
+    bool stop_steps = false,
+  }) async {
+    if (next_step) {
       setState(() {
         nowPlayingIndex++;
-        if (nowPlayingIndex >= widget.songs.length) {
+        if (nowPlayingIndex >= songs.length) {
           nowPlayingIndex = 0;
         }
       });
-
+      player.stop();
       if (_isPlaying) {
-        await player.play(DeviceFileSource(widget.songs[nowPlayingIndex]));
+        player.play(DeviceFileSource(songs[nowPlayingIndex]));
+      } else {
+        currentPosition = '0:00';
+        songDurationWidget = '0:00';
       }
 
-      Map<String, dynamic> a = await _loadTag_using_dart_tags();
+      Map<String, dynamic> a = await loadTag();
+
       setState(() {
         _trackName =
-            a['trackName']?.isEmpty ?? true
-                ? widget.songs[nowPlayingIndex].split(r'\').last
-                : a['trackName'];
+            (a['trackName']?.toString().trim().isNotEmpty ?? false)
+                ? a['trackName'].toString()
+                : songs[nowPlayingIndex].split(r'\').last;
 
         trackArtistNames =
-            a['trackArtistNames'][0]?.isEmpty ?? true
-                ? ['Unknown']
-                : a['trackArtistNames'];
-        imageData = a['albumArt'];
+            (a['trackArtistNames'] is List && a['trackArtistNames'].isNotEmpty)
+                ? List<String>.from(
+                  a['trackArtistNames'].where(
+                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
+                  ),
+                )
+                : ['Unknown'];
+
+        imageData = (a['albumArt'] is Uint8List) ? a['albumArt'] : Uint8List(0);
       });
+
+      if (!fetched_songs.contains(songs[nowPlayingIndex])) {
+        Map metadata = await recognizeMetadata(songs[nowPlayingIndex]);
+        print(metadata);
+        if (metadata.isNotEmpty) {
+          Uint8List coverart = await urlImageToUint8List(
+            metadata['coverarturl'],
+          );
+          // var coverart = metadata['coverarturl'];
+          imageData = coverart;
+          _trackName = metadata['trackname'];
+          trackArtistNames = [metadata['artist']];
+          _showWarningMetadataOverlay();
+        }
+      }
+    }
+
+    if (previous_step) {
+      setState(() {
+        nowPlayingIndex--;
+        if (nowPlayingIndex < 0) {
+          nowPlayingIndex = songs.length - 1;
+        }
+      });
+      player.stop();
+      if (_isPlaying) {
+        player.play(DeviceFileSource(songs[nowPlayingIndex]));
+      } else {
+        currentPosition = '0:00';
+        songDurationWidget = '0:00';
+      }
+
+      Map<String, dynamic> a = await loadTag();
+
+      setState(() {
+        _trackName =
+            (a['trackName']?.toString().trim().isNotEmpty ?? false)
+                ? a['trackName'].toString()
+                : songs[nowPlayingIndex].split(r'\').last;
+
+        trackArtistNames =
+            (a['trackArtistNames'] is List && a['trackArtistNames'].isNotEmpty)
+                ? List<String>.from(
+                  a['trackArtistNames'].where(
+                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
+                  ),
+                )
+                : ['Unknown'];
+
+        imageData = (a['albumArt'] is Uint8List) ? a['albumArt'] : Uint8List(0);
+      });
+    }
+
+    if (stop_steps) {
+      setState(() {
+        _isPlaying = !_isPlaying;
+
+        if (!_isPlaying) {
+          player.pause();
+        } else {
+          player.play(DeviceFileSource(songs[nowPlayingIndex]));
+        }
+      });
+    }
+  }
+
+  // //
+
+  // WORKING WITH SHUFFLE
+
+  Future<void> createNewShuffledPlaylist({
+    bool turnOnShuffle = false,
+    bool turnOffShuffle = false,
+  }) async {
+    if (turnOnShuffle == true) {
+      print('SHUFFLE ENABLE');
+      var songList = widget.songs;
+
+      shuffledPlaylist = [];
+      songs = [];
+      songs = List.from(songList)..shuffle();
+
+      print(songs);
+    } else if (turnOffShuffle == true) {
+      print('SHUFFLE ENABLE');
+
+      songs = [];
+      var songList = widget.songs;
+      for (int i = 0; i < songList.length; i++) {
+        songs.add(songList[i]);
+      }
+      print(songs);
+    }
+  }
+
+  // //
+
+  void _setupPlayerListeners() {
+    player.onPlayerComplete.listen((_) async {
+      await steps(next_step: true);
     });
   }
 
-  void _progress_state() {
+  // PROCESSING TRACK PLAYBACK
+
+  void progressState() {
     player.onPositionChanged.listen((position) async {
       final duration = await player.getDuration();
       String _duration = '';
@@ -175,14 +629,16 @@ class _PlaylistPageState extends State<PlaylistPage> {
       }
 
       setState(() {
-        _current_position = timing;
-        _song_duration_widget = _duration;
-        _song_progress = current_pos;
+        currentPosition = timing;
+        songDurationWidget = _duration;
+        songProgress = current_pos;
 
-        if (_is_slider_active) _controller.value = current_pos / 100;
+        if (isSliderActive) _controller.value = current_pos / 100;
       });
     });
   }
+
+  // //
 
   Future<int> getSecondsByValue(double value) async {
     final duration = await player.getDuration();
@@ -192,17 +648,182 @@ class _PlaylistPageState extends State<PlaylistPage> {
     return 0;
   }
 
+  Future<List<Map<String, dynamic>>> getAllTrackWithMetadata() async {
+    List<Map<String, dynamic>> result = [];
+    for (var song in songs) {
+      var trackName = song.split(r'/').last.split(r'\').last;
+      try {
+        Tag? tag = await AudioTags.read(song);
+        String trackName =
+            tag?.title?.trim() ?? song.split(r'/').last.split(r'\').last;
+
+        List<String> trackArtistNames =
+            tag?.trackArtist?.trim().isNotEmpty == true
+                ? tag!.trackArtist!
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList()
+                : ['Unknown'];
+        String albumName = tag?.album?.trim() ?? 'Unknown';
+        String albumArtistName = tag?.albumArtist?.trim() ?? 'Unknown';
+        int trackNumber = tag?.trackNumber ?? 0;
+        int albumLength = tag?.trackTotal ?? 0;
+        int year = tag?.year ?? 0;
+        String genre = tag?.genre?.trim() ?? 'Unknown';
+        int? discNumber = tag?.discNumber;
+
+        String? authorName = 'metadata.authorName';
+        String? writerName = 'metadata.writerName';
+        String? mimeType = 'metadata.mimeType';
+        int? trackDuration = 0;
+        int? bitrate = 0;
+
+        Uint8List albumArt2 = Uint8List(0);
+        if (tag?.pictures != null && tag!.pictures!.isNotEmpty) {
+          albumArt2 = tag.pictures!.first.bytes ?? Uint8List(0);
+        }
+
+        Map<String, dynamic> allTags = {
+          'trackName': trackName,
+          'trackArtistNames': trackArtistNames,
+          'albumName': albumName,
+          'albumArtistName': albumArtistName,
+          'trackNumber': trackNumber,
+          'albumLength': albumLength,
+          'year': year,
+          'genre': genre,
+          'authorName': authorName,
+          'writerName': writerName,
+          'discNumber': discNumber,
+          'mimeType': mimeType,
+          'trackDuration': trackDuration,
+          'bitrate': bitrate,
+          'albumArt': albumArt2,
+        };
+
+        trackName =
+            (allTags['trackName']?.toString().trim().isNotEmpty ?? false)
+                ? allTags['trackName'].toString()
+                : song.split(r'\').last.split(r'/').last;
+
+        trackArtistNames =
+            (allTags['trackArtistNames'] is List &&
+                    allTags['trackArtistNames'].isNotEmpty)
+                ? List<String>.from(
+                  allTags['trackArtistNames'].where(
+                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
+                  ),
+                )
+                : ['Unknown'];
+
+        albumArt2 =
+            (allTags['albumArt'] is Uint8List)
+                ? allTags['albumArt']
+                : Uint8List(0);
+
+        Map<String, dynamic> filetag = {
+          'trackName': trackName,
+          'trackArtistNames': trackArtistNames,
+          'albumName': albumName,
+          'albumArtistName': albumArtistName,
+          'trackNumber': trackNumber,
+          'albumLength': albumLength,
+          'year': year,
+          'genre': genre,
+          'authorName': authorName,
+          'writerName': writerName,
+          'discNumber': discNumber,
+          'mimeType': mimeType,
+          'trackDuration': trackDuration,
+          'bitrate': bitrate,
+          'albumArt': albumArt2,
+        };
+
+        result.add(filetag);
+      } catch (e) {
+        result.add({
+          'trackName': trackName,
+          'trackArtistNames': ['Unknown'],
+          'albumArt': Uint8List(0),
+        });
+      }
+    }
+    return result;
+  }
+
+  Future<Map<String, dynamic>> recognizeMetadata(String track) async {
+    var filename = track.split(r'/').last.split(r'\').last;
+    var query = 'FILENAME:$filename';
+    try {
+      final response = await http.get(
+        Uri.parse('http://$serverApiURL/get_metadata?data=$query'),
+      );
+
+      var rsp = jsonDecode(response.body) as Map<String, dynamic>;
+
+      var trackname = rsp['title'];
+      var artist = rsp['artists'][0]['name'];
+      var coverarturl = rsp['cover_art_url'];
+
+      Map<String, dynamic> output = {
+        'trackname': '$trackname',
+        'artist': '$artist',
+        'coverarturl': '$coverarturl',
+      };
+      print(output);
+      return Future.value(output);
+    } catch (e) {
+      return Future.value({});
+    }
+  }
+
+  // HANDLING PAGE LOADING
+
   @override
   void initState() {
     super.initState();
     _setupPlayerListeners();
-    _progress_state();
+    progressState();
 
-    _loadTag_using_dart_tags().then((value) {
+    warningMetadataAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 650),
+      vsync: this,
+    );
+
+    warningMetadataOffsetAnimation = Tween<Offset>(
+      begin: const Offset(1.0, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: warningMetadataAnimationController,
+        curve: Curves.ease,
+      ),
+    );
+
+    playlistAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 650),
+      vsync: this,
+    );
+
+    playlistOffsetAnimation = Tween<Offset>(
+      begin: const Offset(-1.0, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: playlistAnimationController, curve: Curves.ease),
+    );
+
+    var songList = widget.songs;
+
+    for (int i = 0; i < songList.length; i++) {
+      songs.add(songList[i]);
+    }
+
+    loadTag().then((value) {
       setState(() {
         print(value['trackName']);
         if (value['trackName'] == '') {
-          _trackName = widget.songs[nowPlayingIndex].split(r'\').last;
+          _trackName = songs[nowPlayingIndex].split(r'\').last;
         } else {
           _trackName = value['trackName'];
         }
@@ -217,10 +838,18 @@ class _PlaylistPageState extends State<PlaylistPage> {
     });
   }
 
+  // //
+
+  // brrr
+
   @override
   void dispose() {
     player.dispose();
     super.dispose();
+    playlistAnimationController.dispose();
+    playlistOverlayEntry?.remove();
+    warningMetadataAnimationController.dispose();
+    warningMetadataOverlayEntry?.remove();
   }
 
   @override
@@ -228,569 +857,647 @@ class _PlaylistPageState extends State<PlaylistPage> {
     return Scaffold(
       backgroundColor: Colors.transparent,
 
-      body: Center(
-        child: Container(
-          height: MediaQuery.of(context).size.height,
-          width: MediaQuery.of(context).size.width,
+      body: Row(
+        children: [
+          Container(
+            height: MediaQuery.of(context).size.height,
+            width: MediaQuery.of(context).size.width,
 
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: MemoryImage(imageData),
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: MemoryImage(imageData),
 
-              fit: BoxFit.cover,
-              colorFilter: ColorFilter.mode(
-                Colors.black.withOpacity(0.5),
-                BlendMode.darken,
+                fit: BoxFit.cover,
+                colorFilter: ColorFilter.mode(
+                  Colors.black.withOpacity(0.5),
+                  BlendMode.darken,
+                ),
+              ),
+              gradient: LinearGradient(
+                colors: [
+                  Color.fromRGBO(24, 24, 26, 1),
+                  Color.fromRGBO(18, 18, 20, 1),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
             ),
-            gradient: LinearGradient(
-              colors: [
-                Color.fromRGBO(24, 24, 26, 1),
-                Color.fromRGBO(18, 18, 20, 1),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
 
-          child: ClipRect(
+            child: ClipRect(
+              child: AnimatedSwitcher(
+                duration: Duration(milliseconds: 750),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                child: BackdropFilter(
+                  key: ValueKey<Uint8List>(imageData),
 
-          child: AnimatedSwitcher(
-              duration: Duration(milliseconds: 1000),
-              transitionBuilder: (Widget child, Animation<double> animation) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 95.0, sigmaY: 95.0),
 
-                key: ValueKey<Uint8List>(imageData),
+                  child: Container(
+                    color: Colors.transparent,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
 
+                      children: [
+                        Container(
+                          height: 250,
+                          width: 250,
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: MemoryImage(imageData),
+                              fit: BoxFit.cover,
+                              colorFilter: ColorFilter.mode(
+                                Colors.black.withOpacity(0),
+                                BlendMode.darken,
+                              ),
+                            ),
 
-                filter: ImageFilter.blur(sigmaX: 95.0, sigmaY: 95.0),
-                child: Container(
-                  color: Colors.transparent,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color.fromARGB(255, 21, 21, 21),
+                                blurRadius: 10,
+                                offset: Offset(5, 10),
+                              ),
+                            ],
+                          ),
+                        ),
 
-                    children: [
-                      Container(
-                        height: 250,
-                        width: 250,
-                        decoration: BoxDecoration(
-                          image: DecorationImage(
-                            image: MemoryImage(imageData),
-                            fit: BoxFit.cover,
-                            colorFilter: ColorFilter.mode(
-                              Colors.black.withOpacity(0),
-                              BlendMode.darken,
+                        SizedBox(height: 35),
+
+                        SizedBox(
+                          width: 500,
+
+                          child: Text(
+                            _trackName.split(r'\').last,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color.fromARGB(255, 21, 21, 21),
-                              blurRadius: 10,
-                              offset: Offset(5, 10),
-                            ),
-                          ],
                         ),
-                      ),
-                
 
-                    SizedBox(height: 35),
-
-                    SizedBox(
-                      width: 500,
-
-                      child: Text(
-                        _trackName.split(r'\').last,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-
-                    Text(
-                      trackArtistNames?.join(', ') ?? 'Unknown',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w300,
-                      ),
-                    ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
                         Text(
-                          _current_position,
+                          trackArtistNames?.join(', ') ?? 'Unknown',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 13,
+                            fontSize: 18,
                             fontWeight: FontWeight.w300,
                           ),
                         ),
 
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              currentPosition,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
+
+                            SizedBox(
+                              width: 325,
+
+                              child: InteractiveSlider(
+                                controller: _controller,
+                                unfocusedHeight: 5,
+                                focusedHeight: 10,
+                                min: 0.0,
+                                max: 100.0,
+                                onProgressUpdated: (value) async {
+                                  isSliderActive = true;
+                                  try {
+                                    final seconds = await getSecondsByValue(
+                                      value,
+                                    );
+                                    await player.seek(
+                                      Duration(seconds: seconds),
+                                    );
+                                  } catch (e) {
+                                    print('ERR: $e');
+                                  }
+                                },
+
+                                brightness: Brightness.light,
+                                initialProgress: songProgress,
+                                iconColor: Colors.white,
+                                gradient: LinearGradient(
+                                  colors: [Colors.white, Colors.white],
+                                ),
+                                shapeBorder: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(
+                                    Radius.circular(8),
+                                  ),
+                                ),
+
+                                onFocused: (value) => {isSliderActive = false},
+                              ),
+                            ),
+
+                            Text(
+                              '$songDurationWidget',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // PREVIOUS BUTTON
+                            Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
+
+                              child: InkWell(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(10),
+                                ),
+                                onTap: () async {
+                                  await steps(previous_step: true);
+                                },
+
+                                child: Container(
+                                  height: 40,
+                                  width: 40,
+
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(
+                                      255,
+                                      40,
+                                      40,
+                                      42,
+                                    ),
+
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.skip_previous,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // // PREVIOUS BUTTON
+                            SizedBox(width: 15),
+
+                            // PLAY BUTTON
+                            Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
+
+                              child: InkWell(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(10),
+                                ),
+                                onTap: () async {
+                                  await steps(stop_steps: true);
+                                },
+
+                                child: Container(
+                                  height: 50,
+                                  width: 50,
+
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(
+                                      255,
+                                      40,
+                                      40,
+                                      42,
+                                    ),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _isPlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                        color: Colors.white,
+                                        size: 28,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // // PLAY BUTTON
+                            SizedBox(width: 15),
+
+                            // NEXT SONG BUTTON
+                            Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
+
+                              child: InkWell(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(10),
+                                ),
+                                onTap: () async {
+                                  await steps(next_step: true);
+                                },
+                                child: Container(
+                                  height: 40,
+                                  width: 40,
+
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(
+                                      255,
+                                      40,
+                                      40,
+                                      42,
+                                    ),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.skip_next,
+                                        color: Colors.white,
+                                        size: 24,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        // // NEXT SONG BUTTON
+                        SizedBox(height: 15),
+
+                        // VOLUME SLIDER
                         SizedBox(
                           width: 325,
 
                           child: InteractiveSlider(
-                            controller: _controller,
-                            unfocusedHeight: 5,
-                            focusedHeight: 10,
+                            startIcon: const Icon(Icons.volume_down),
+                            endIcon: const Icon(Icons.volume_up),
                             min: 0.0,
-                            max: 100.0,
-                            onProgressUpdated: (value) async {
-                              _is_slider_active = true;
-                              try {
-                                final seconds = await getSecondsByValue(value);
-                                await player.seek(Duration(seconds: seconds));
-                              } catch (e) {
-                                print('ERR: $e');
-                              }
-                            },
-
+                            max: 1.0,
                             brightness: Brightness.light,
-                            initialProgress: _song_progress,
+                            initialProgress: _volumeValue,
                             iconColor: Colors.white,
                             gradient: LinearGradient(
                               colors: [Colors.white, Colors.white],
                             ),
-                            shapeBorder: RoundedRectangleBorder(
+                            onChanged:
+                                (value) => setState(() {
+                                  _volumeValue = value;
+                                  player.setVolume(_volumeValue);
+                                }),
+                          ),
+                        ),
+
+                        // // VOLUME SLIDER
+                        SizedBox(height: 20),
+
+                        // BUTTONS ROW
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // PLAYLIST BUTTON
+                            Material(
+                              color: Colors.transparent,
                               borderRadius: BorderRadius.all(
-                                Radius.circular(8),
+                                Radius.circular(20),
                               ),
-                            ),
 
-                            onFocused: (value) => {_is_slider_active = false},
-                          ),
-                        ),
-
-                        Text(
-                          '$_song_duration_widget',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w300,
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () async {
-                              setState(() {
-                                nowPlayingIndex--;
-                                if (nowPlayingIndex < 0) {
-                                  nowPlayingIndex = widget.songs.length - 1;
-                                }
-                              });
-                              player.stop();
-                              if (_isPlaying) {
-                                player.play(
-                                  DeviceFileSource(
-                                    widget.songs[nowPlayingIndex],
-                                  ),
-                                );
-                              }
-
-                              Map<String, dynamic> a =
-                                  await _loadTag_using_dart_tags();
-
-                              setState(() {
-                                print(a['trackName']);
-                                if (a['trackName'] == '') {
-                                  _trackName =
-                                      widget.songs[nowPlayingIndex]
-                                          .split(r'\')
-                                          .last;
-                                } else {
-                                  _trackName = a['trackName'];
-                                }
-
-                                if (a['trackArtistNames'][0] == "") {
-                                  trackArtistNames = ['Unknown'];
-                                } else {
-                                  trackArtistNames = a['trackArtistNames'];
-                                }
-                                imageData = a['albumArt'];
-                              });
-                            },
-
-                            child: Container(
-                              height: 40,
-                              width: 40,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-
+                              child: InkWell(
                                 borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
+                                  Radius.circular(10),
                                 ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.skip_previous,
-                                    color: Colors.white,
-                                    size: 24,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                                splashColor: Colors.transparent,
+                                highlightColor: Color.fromARGB(255, 40, 40, 42),
+                                onTap:
+                                    isPlaylistOpened
+                                        ? _hidePlaylistOverlay
+                                        : _showPlaylistOverlay,
+                                child: Container(
+                                  height: 35,
+                                  width: 35,
 
-                        SizedBox(width: 15),
-
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () {
-                              setState(() {
-                                _isPlaying = !_isPlaying;
-
-                                if (!_isPlaying) {
-                                  player.pause();
-                                } else {
-                                  player.play(
-                                    DeviceFileSource(
-                                      widget.songs[nowPlayingIndex],
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(
+                                      255,
+                                      40,
+                                      40,
+                                      42,
                                     ),
-                                  );
-                                }
-                              });
-                            },
-
-                            child: Container(
-                              height: 50,
-                              width: 50,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    _isPlaying ? Icons.pause : Icons.play_arrow,
-                                    color: Colors.white,
-                                    size: 28,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(width: 15),
-
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            onTap: () async {
-                              setState(() {
-                                nowPlayingIndex++;
-                                if (nowPlayingIndex >= widget.songs.length) {
-                                  nowPlayingIndex = 0;
-                                }
-                                player.stop();
-                                if (_isPlaying) {
-                                  player.play(
-                                    DeviceFileSource(
-                                      widget.songs[nowPlayingIndex],
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
                                     ),
-                                  );
-                                }
-                              });
-
-                              Map<String, dynamic> a =
-                                  await _loadTag_using_dart_tags();
-
-                              setState(() {
-                                print(a['trackName']);
-                                if (a['trackName'] == '') {
-                                  _trackName =
-                                      widget.songs[nowPlayingIndex]
-                                          .split(r'\')
-                                          .last;
-                                } else {
-                                  _trackName = a['trackName'];
-                                }
-
-                                if (a['trackArtistNames'][0] == "") {
-                                  trackArtistNames = ['Unknown'];
-                                } else {
-                                  trackArtistNames = a['trackArtistNames'];
-                                }
-                                imageData = a['albumArt'];
-                              });
-                            },
-                            child: Container(
-                              height: 40,
-                              width: 40,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.featured_play_list_outlined,
+                                        color:
+                                            isPlaylistOpened
+                                                ? Color.fromRGBO(
+                                                  255,
+                                                  255,
+                                                  255,
+                                                  1,
+                                                )
+                                                : Color.fromRGBO(
+                                                  255,
+                                                  255,
+                                                  255,
+                                                  0.500,
+                                                ),
+                                        size: 20,
+                                        key: ValueKey<bool>(isPlaylistOpened),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.skip_next,
-                                    color: Colors.white,
-                                    size: 24,
+                            ),
+
+                            // //PLAYLIST BUTTON
+                            SizedBox(width: 15),
+
+                            // SHUFFLITAS
+                            Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
+
+                              child: InkWell(
+                                splashColor: Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                highlightColor: Color.fromARGB(255, 40, 40, 42),
+
+                                onTap: () async {
+                                  setState(() {
+                                    isShuffleEnable = !isShuffleEnable;
+                                  });
+
+                                  if (isShuffleEnable == true) {
+                                    await createNewShuffledPlaylist(
+                                      turnOnShuffle: true,
+                                    );
+                                  }
+                                  if (isShuffleEnable == false) {
+                                    await createNewShuffledPlaylist(
+                                      turnOffShuffle: true,
+                                    );
+                                  }
+                                  _hidePlaylistOverlay();
+                                },
+
+                                child: Container(
+                                  height: 35,
+                                  width: 35,
+
+                                  decoration: BoxDecoration(
+                                    color: Color.fromARGB(255, 40, 40, 42),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
+                                    ),
                                   ),
-                                ],
+
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      AnimatedSwitcher(
+                                        duration: Duration(milliseconds: 120),
+                                        transitionBuilder: (child, animation) {
+                                          return FadeTransition(
+                                            opacity: animation,
+                                            child: child,
+                                          );
+                                        },
+                                        layoutBuilder:
+                                            (currentChild, previousChildren) =>
+                                                Stack(
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    ...previousChildren,
+                                                    if (currentChild != null)
+                                                      currentChild,
+                                                  ],
+                                                ),
+                                        child: Icon(
+                                          isShuffleEnable
+                                              ? Icons.shuffle
+                                              : Icons.shuffle_outlined,
+                                          key: ValueKey<bool>(isShuffleEnable),
+                                          color:
+                                              isShuffleEnable
+                                                  ? Color.fromRGBO(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    1,
+                                                  )
+                                                  : Color.fromRGBO(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    0.5,
+                                                  ),
+                                          size: 20,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
+
+                            // // SHUFFLITAS
+                            SizedBox(width: 75),
+
+                            // REPEATER BUTTON
+                            Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
+
+                              child: InkWell(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(10),
+                                ),
+                                splashColor: Colors.transparent,
+                                highlightColor: Color.fromARGB(255, 40, 40, 42),
+                                onTap: () async {
+                                  await db.saveVariables([
+                                    {'42': 42},
+                                  ]);
+                                  // print(db.getVariable('42'));
+                                  db.getVariable('42').then((value) {
+                                    print(
+                                      value,
+                                    ); // Напечатает значение, когда оно будет доступно
+                                  });
+                                  setState(() {
+                                    isRepeatEnable = !isRepeatEnable;
+                                  });
+                                },
+                                child: Container(
+                                  height: 35,
+                                  width: 35,
+
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(
+                                      255,
+                                      40,
+                                      40,
+                                      42,
+                                    ),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
+                                    ),
+                                  ),
+
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      AnimatedSwitcher(
+                                        duration: Duration(milliseconds: 120),
+                                        transitionBuilder: (child, animation) {
+                                          return FadeTransition(
+                                            opacity: animation,
+                                            child: child,
+                                          );
+                                        },
+                                        layoutBuilder:
+                                            (currentChild, previousChildren) =>
+                                                Stack(
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    ...previousChildren,
+                                                    if (currentChild != null)
+                                                      currentChild,
+                                                  ],
+                                                ),
+
+                                        child: Icon(
+                                          Icons.repeat_outlined,
+                                          color:
+                                              isRepeatEnable
+                                                  ? Color.fromRGBO(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    1,
+                                                  )
+                                                  : Color.fromRGBO(
+                                                    255,
+                                                    255,
+                                                    255,
+                                                    0.500,
+                                                  ),
+                                          size: 20,
+                                          key: ValueKey<bool>(isRepeatEnable),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // // REPEATER BUTTON
+                            SizedBox(width: 15),
+
+                            // MENU BUTTON
+                            Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(20),
+                              ),
+
+                              child: InkWell(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(10),
+                                ),
+                                splashColor: Colors.transparent,
+                                highlightColor: Color.fromARGB(255, 40, 40, 42),
+                                onTap: () async {
+                                  await steps(stop_steps: true);
+                                  await player.stop();
+                                  Navigator.pop(context);
+                                },
+                                child: Container(
+                                  height: 35,
+                                  width: 35,
+
+                                  decoration: BoxDecoration(
+                                    color: const Color.fromARGB(
+                                      255,
+                                      40,
+                                      40,
+                                      42,
+                                    ),
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(30),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.menu,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            // // MENU BUTTON
+                          ],
                         ),
+                        // // BUTTONS ROW
                       ],
                     ),
-
-                    SizedBox(height: 15),
-
-                    SizedBox(
-                      width: 325,
-
-                      child: InteractiveSlider(
-                        startIcon: const Icon(Icons.volume_down),
-                        endIcon: const Icon(Icons.volume_up),
-                        min: 0.0,
-                        max: 1.0,
-                        brightness: Brightness.light,
-                        initialProgress: _volumeValue,
-                        iconColor: Colors.white,
-                        gradient: LinearGradient(
-                          colors: [Colors.white, Colors.white],
-                        ),
-                        onChanged:
-                            (value) => setState(() {
-                              _volumeValue = value;
-                              player.setVolume(_volumeValue);
-                            }),
-                      ),
-                    ),
-
-                    SizedBox(height: 20),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            splashColor: Colors.transparent,
-                            highlightColor: Color.fromARGB(255, 40, 40, 42),
-                            onTap: () {},
-                            child: Container(
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.featured_play_list_outlined,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(width: 15),
-
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-                          
-                          
-                          // SHUFFLITAS
-
-                          child: InkWell(
-                              splashColor: Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                              highlightColor: Color.fromARGB(255, 40, 40, 42),
-
-                            onTap: () {
-                              setState(() {
-                                _shuffle_enabled = !_shuffle_enabled;
-                                 
-                              });
-                            },
-
-                            child: Container(
-
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-
-                              child: Row(
-
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    
-                                    _shuffle_enabled
-                                        ? Icons.shuffle
-                                        : Icons.shuffle_outlined,
-                                    
-                                    color: 
-                                      _shuffle_enabled
-                                          ? Color.fromRGBO(255, 255, 255, 0.500)
-                                          : Color.fromRGBO(255, 255, 255, 1),
-
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                         // SHUFFLITAS
-
-
-                        SizedBox(width: 75),
-
-
-
-                        // REPEATER BUTTON
-
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            splashColor: Colors.transparent,
-                            highlightColor: Color.fromARGB(255, 40, 40, 42),
-                            onTap: () {
-
-                              setState(() {
-                                _is_repeater_active = !_is_repeater_active;
-                              });
-
-
-                            },
-                            child: Container(
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.repeat_outlined,
-                                    color: 
-                                      _is_repeater_active
-                                          ? Color.fromRGBO(255, 255, 255, 1)
-                                          :  Color.fromRGBO(255, 255, 255, 0.500),
-                                         
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // REPEATER BUTTON
-
-                        SizedBox(width: 15),
-
-                        Material(
-                          color: Colors.transparent,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-
-                          child: InkWell(
-                            borderRadius: BorderRadius.all(Radius.circular(10)),
-                            splashColor: Colors.transparent,
-                            highlightColor: Color.fromARGB(255, 40, 40, 42),
-                            onTap: () {
-                              setState(() {});
-                            },
-                            child: Container(
-                              height: 35,
-                              width: 35,
-
-                              decoration: BoxDecoration(
-                                color: const Color.fromARGB(255, 40, 40, 42),
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(30),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.menu,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
-      )
     );
   }
 }

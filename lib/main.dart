@@ -92,7 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
       await for (final entity in dir.list()) {
         if (entity is File) {
           if (entity.path.toLowerCase().endsWith('.mp3') ||
-              entity.path.toLowerCase().endsWith('.wav') ||
+              entity.path.toLowerCase().endsWith('.wav')  ||
               entity.path.toLowerCase().endsWith('.flac') ||
               entity.path.toLowerCase().endsWith('.aac') ||
               entity.path.toLowerCase().endsWith('.m4a')) {
