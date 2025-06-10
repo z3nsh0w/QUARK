@@ -1,43 +1,16 @@
-# Musician 
+# flutter_42
 
-## 🚨 WARNING: THIS REPO IS FOR SOURCE CODE ONLY
-**At the moment there are no ready-made window layouts for operating systems (folders windows, linux macos).**
-**The product is in pre-alpha testing, from which it will be released in patch 0.99 ;)**
-**If You want to download finished and compiled files you need to go to the releases tab**
+A new Flutter project.
 
-## 🚀 About  
-**Musician is an open-source music player without the bloat.**
-**It is a lightweight audio player inspired by the philosophy of **Amberol**. It still has no delusions of grandeur, if you just want to play music available on your local system, then this is your choice.**
+## Getting Started
 
-![Musician Screenshot](screenshot.png)
-![Musician Screenshot](screenshot2.png)
+This project is a starting point for a Flutter application.
 
----
+A few resources to get you started if this is your first Flutter project:
 
-**Tech Stack**:  
- Powered by **Flutter**  
- Cross-platform (only-desktop) (Windows/Linux/macOS)  
+- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
+- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
 
----
-
-## 🗺️ Roadmap :
-
-### 🔥 Coming Soon:  
-- 🗃️ Optimized database for playlists  
-- ⚡ Performance improvements  
-- ✨ Drag-and-drop support  
-
-### 💡 Future Ideas (dreams):  
-- 📹 Video playback support  
-- ⬇️ FLAC downloads from open sources  
-- 🌐 Spotify/Deezer API integration
-
----
-
-## 🛠 Installation :
-**STEPS:**
- - Download source
- - Create flutter project
- - run `flutter pub get`
- - run `flutter build {your_operating_system}`
- - run `flutter run`
+For help getting started with Flutter development, view the
+[online documentation](https://docs.flutter.dev/), which offers tutorials,
+samples, guidance on mobile development, and a full API reference.
