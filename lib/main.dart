@@ -202,26 +202,49 @@ class _MyHomePageState extends State<MyHomePage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        onTap: restorePlaylist,
+                    SizedBox(height: 30),
+
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
                         child: Container(
                           height: 45,
                           width: 350,
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 39, 48, 59),
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              restorePlaylistButtonText,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: restorePlaylist,
+                              child: Center(
+                                child: Text(
+                                  restorePlaylistButtonText,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -229,51 +252,96 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     SizedBox(height: 15),
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        onTap: pickFolder,
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
                         child: Container(
                           height: 45,
                           width: 350,
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 40, 40, 42),
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              'Add folder',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: pickFolder,
+                              child: Center(
+                                child: Text(
+                                  'Add folder',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
+
                     SizedBox(height: 15),
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        onTap: () {},
+
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
                         child: Container(
                           height: 45,
                           width: 350,
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 40, 40, 42),
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              'Quark server & Spotify',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: () {},
+                              child: Center(
+                                child: Text(
+                                  'Quark server & Spotify',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),

@@ -1,13 +1,195 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:interactive_slider/interactive_slider.dart';
 import 'package:audiotags/audiotags.dart';
 import 'package:http/http.dart' as http;
 import 'package:QUARK/database.dart';
 import 'package:dio/dio.dart';
+import 'package:path/path.dart' as path;
+import 'package:file_picker/file_picker.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:logging/logging.dart';
+import 'package:path_provider/path_provider.dart';
+
+
+
+class PathManager {
+  static String getFileName(String filePath) {
+    return path.basename(path.normalize(filePath));
+  }
+
+  static Future<bool> checkfileExists(String filePath) async {
+    try {
+      return await File(filePath).exists();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static String getnormalizePath(String filePath) {
+    return path.normalize(filePath);
+  }
+}
+
+class FileTags {
+  static Future<Map<String, dynamic>> getTagsFromFile(String filePath) async {
+    try {
+      Tag? tagsFromFile = await AudioTags.read(
+        PathManager.getnormalizePath(filePath),
+      );
+      if (tagsFromFile == null) {
+        return {
+          'trackName': PathManager.getFileName(filePath),
+          'trackArtistNames': ['Unknown'],
+          'albumArt': Uint8List(0),
+        };
+      }
+
+      return {
+        'trackName':
+            tagsFromFile?.title?.trim() ?? PathManager.getFileName(filePath),
+        'trackArtistNames':
+            tagsFromFile?.trackArtist?.trim().isNotEmpty == true
+                ? tagsFromFile!.trackArtist!
+                    .split(',')
+                    .map((e) => e.trim())
+                    .where((e) => e.isNotEmpty)
+                    .toList()
+                : ['Unknown'],
+        'albumName': tagsFromFile.album?.trim() ?? 'Unknown',
+        'albumArtistName': tagsFromFile.albumArtist?.trim() ?? 'Unknown',
+        'trackNumber': tagsFromFile.trackNumber ?? 0,
+        'albumLength': tagsFromFile.trackTotal ?? 0,
+        'year': tagsFromFile.year ?? 0,
+        'genre': tagsFromFile.genre?.trim() ?? 'Unknown',
+        'discNumber': tagsFromFile.discNumber,
+        'authorName': 'metadata.authorName',
+        'writerName': 'metadata.writerName',
+        'mimeType': 'metadata.mimeType',
+        'trackDuration': 0,
+        'bitrate': 0,
+        'albumArt':
+            tagsFromFile.pictures.isNotEmpty
+                ? tagsFromFile.pictures.first.bytes ?? Uint8List(0)
+                : Uint8List(0),
+      };
+    } catch (e) {
+      return {
+        'trackName': PathManager.getFileName(filePath),
+        'trackArtistNames': ['Unknown'],
+        'albumArt': Uint8List(0),
+      };
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getAllTracksMetadata(
+    List<String> filePaths,
+  ) async {
+    final List<Map<String, dynamic>> results = [];
+    for (final file in filePaths) {
+      final tags = await getTagsFromFile(PathManager.getnormalizePath(file));
+      results.add(tags);
+    }
+    return results;
+  }
+}
+
+class RecognizerService {
+  static void saveRecognizedData(
+    filename,
+    coverArtUint8,
+    artistName,
+    trackName,
+  ) {
+    Database.getValue('recognizedTracks').then((recognizedTracksList) {
+      List<Map<String, dynamic>> tracksList = [];
+
+      if (recognizedTracksList != null) {
+        for (var track in recognizedTracksList) {
+          final convertedTrack = track.cast<String, dynamic>();
+          tracksList.add(convertedTrack);
+        }
+      }
+
+      Map<String, dynamic> addToList = {
+        'filename': filename,
+        'coverArt': coverArtUint8,
+        'artistName': artistName,
+        'trackName': trackName,
+      };
+
+      tracksList.add(addToList);
+
+      Database.setValue('recognizedTracks', tracksList);
+    });
+  }
+
+  static Future<Map<String, dynamic>> recognizeMetadata(
+    String track,
+    String apiURL,
+  ) async {
+    var filename = PathManager.getFileName(track);
+    var query = 'FILENAME:$filename'; // Make a request in free format
+    try {
+      final response = await http.get(
+        Uri.parse(
+          'http://$apiURL/get_metadata?data=$query',
+        ), // Make a request in free format
+      );
+
+      var jsonResponseFromAPI =
+          jsonDecode(response.body) as Map<String, dynamic>;
+
+      var trackname = jsonResponseFromAPI['title'];
+      var artist = jsonResponseFromAPI['artists'][0]['name'];
+      var coverarturl = jsonResponseFromAPI['cover_art_url'];
+
+      Map<String, dynamic> trackData = {
+        'trackname': '$trackname',
+        'artist': '$artist',
+        'coverarturl': '$coverarturl',
+      };
+      print(trackData);
+      return Future.value(trackData);
+    } catch (e) {
+      return Future.value({}); // If we don't find anything, we rest.
+    }
+  }
+
+  static Future<Uint8List> urlImageToUint8List(String imageUrl) async {
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        return response.bodyBytes;
+      } else {
+        throw Exception('Failed to load image: ${response.statusCode}');
+      }
+    } catch (e) {
+      return Uint8List(0);
+    }
+  }
+}
+
+// class audioPlayer {
+//   static final AudioPlayer player = AudioPlayer();
+//   static final InteractiveSliderController volumeController = InteractiveSliderController(0.0);
+//   static List<String> songs = [];
+//   static List<String> shuffledPlaylist = [];
+
+//   static void init() {
+//     songs = [];
+//     shuffledPlaylist = [];
+//   }
+
+//   static void refung() {
+//     // player.play();
+//   }
+// }
 
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
@@ -22,7 +204,11 @@ class _PlaylistPageState extends State<PlaylistPage>
     with TickerProviderStateMixin {
   void _showPlaylistOverlay() {
     if (isPlaylistOpened == false) {
-      isPlaylistOpened = true;
+      if (mounted) {
+        setState(() {
+          isPlaylistOpened = true;
+        });
+      }
 
       playlistOverlayEntry = OverlayEntry(
         builder:
@@ -73,7 +259,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                               Padding(
                                 padding: const EdgeInsets.only(top: 50),
                                 child: FutureBuilder(
-                                  future: getAllTrackWithMetadata(),
+                                  future: FileTags.getAllTracksMetadata(songs),
                                   builder: (context, snapshot) {
                                     final tracks = snapshot.data ?? [];
 
@@ -148,17 +334,21 @@ class _PlaylistPageState extends State<PlaylistPage>
                                             ],
                                           ),
                                           onTap: () {
-                                            getAllTrackWithMetadata();
-                                            setState(() {
-                                              if (nowPlayingIndex != index &&
-                                                  index > 0) {
-                                                nowPlayingIndex = index - 1;
-                                                steps(nextStep: true);
-                                              } else if (index == 0) {
-                                                nowPlayingIndex = index;
-                                                steps(replayStep: true);
-                                              }
-                                            });
+                                            FileTags.getAllTracksMetadata(
+                                              songs,
+                                            );
+                                            if (mounted) {
+                                              setState(() {
+                                                if (nowPlayingIndex != index &&
+                                                    index > 0) {
+                                                  nowPlayingIndex = index - 1;
+                                                  steps(nextStep: true);
+                                                } else if (index == 0) {
+                                                  nowPlayingIndex = index;
+                                                  steps(replayStep: true);
+                                                }
+                                              });
+                                            }
                                           },
                                         );
                                       },
@@ -176,6 +366,18 @@ class _PlaylistPageState extends State<PlaylistPage>
                                     color: Colors.white.withOpacity(0.8),
                                   ),
                                   onPressed: _hidePlaylistOverlay,
+                                ),
+                              ),
+                              Positioned(
+                                top: 15,
+                                left: 150,
+                                child: Text(
+                                  'Playlist',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 18,
+                                  ),
                                 ),
                               ),
                             ],
@@ -196,7 +398,12 @@ class _PlaylistPageState extends State<PlaylistPage>
 
   void _hidePlaylistOverlay() {
     if (isPlaylistOpened == true) {
-      isPlaylistOpened = false;
+      if (mounted) {
+        setState(() {
+          isPlaylistOpened = false;
+        });
+      }
+
       playlistAnimationController.reverse().then((_) {
         playlistOverlayEntry?.remove();
         playlistOverlayEntry = null;
@@ -249,6 +456,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                         child: Column(
                           children: [
                             Container(
+                              padding: EdgeInsets.only(left: 15, top: 15),
                               child: Text(
                                 'Is that correct metadata?',
                                 style: TextStyle(
@@ -256,7 +464,6 @@ class _PlaylistPageState extends State<PlaylistPage>
                                   fontSize: 18,
                                 ),
                               ),
-                              padding: EdgeInsets.only(left: 15, top: 15),
                             ),
                             SizedBox(height: 10),
 
@@ -265,7 +472,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                               children: [
                                 InkWell(
                                   onTap: () {
-                                    saveRecognizedData(
+                                    RecognizerService.saveRecognizedData(
                                       songs[nowPlayingIndex],
                                       coverArtData,
                                       trackArtistNames.toString(),
@@ -349,262 +556,588 @@ class _PlaylistPageState extends State<PlaylistPage>
   void _showSettingsOverlay() {
     settingsOverlayEntry = OverlayEntry(
       builder:
-          (context) => Stack(
-            children: [
-              Positioned.fill(
-                child: GestureDetector(
-                  onTap: _hideSettingsOverlay,
-                  child: Container(color: Colors.black.withOpacity(0.05)),
-                ),
-              ),
+          (context) => StatefulBuilder(
+            builder: (BuildContext context, StateSetter setOverlayState) {
+              return Stack(
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      onTap: _hideSettingsOverlay,
+                      child: Container(color: Colors.black.withOpacity(0.05)),
+                    ),
+                  ),
 
-              Positioned(
-                child: SlideTransition(
-                  position: settingsOffsetAnimation,
-                  child: Center(
-                    child: Material(
-                      color: Colors.transparent,
+                  Positioned(
+                    child: SlideTransition(
+                      position: settingsOffsetAnimation,
+                      child: Center(
+                        child: Material(
+                          color: Colors.transparent,
 
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.all(
-                          Radius.circular(15),
-                        ),
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
-                          child: Container(
-                            width: 464 - 50,
-                            height: 815 - 100,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.2),
-                                width: 1,
-                              ),
-                              borderRadius: const BorderRadius.all(
-                                Radius.circular(20),
-                              ),
-                              gradient: LinearGradient(
-                                begin: Alignment.topRight,
-                                end: Alignment.bottomRight,
-                                colors: [
-                                  Colors.white.withOpacity(0.15),
-                                  Colors.white.withOpacity(0.05),
-                                ],
-                              ),
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(15),
                             ),
-                            child: Column(
-                              children: [
-                                Container(
-                                  width: 464 - 50,
-                                  child: Positioned(
-                                    top: 25,
-                                    // right: -600,
-                                    child: IconButton(
-                                      icon: Icon(
-                                        Icons.close,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                      onPressed: _hideSettingsOverlay,
-                                    ),
+                            child: BackdropFilter(
+                              filter: ImageFilter.blur(
+                                sigmaX: 175,
+                                sigmaY: 175,
+                              ),
+                              child: Container(
+                                width: 600,
+                                height: 815 - 100,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.2),
+                                    width: 1,
+                                  ),
+                                  borderRadius: const BorderRadius.all(
+                                    Radius.circular(20),
+                                  ),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topRight,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      Colors.white.withOpacity(0.15),
+                                      Colors.white.withOpacity(0.05),
+                                    ],
                                   ),
                                 ),
+                                child: Column(
+                                  children: [
+                                    SizedBox(height: 15),
 
-                                SizedBox(height: 40),
-                                Text(
-                                  '        at the moment this is the debugging menu. need to make user"s settings. penis',
-                                  style: TextStyle(color: Colors.white),
-                                ),
-                                SizedBox(height: 40),
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.center,
+                                      children: [
+                                        Container(
+                                          height: 45,
+                                          width: 150,
 
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap: _hideSettingsOverlay,
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Close menu',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(height: 15),
-
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap: () async {
-                                    setState(() {
-                                      nowPlayingIndex = 0;
-                                    });
-                                    await steps(stopSteps: true);
-                                    await player.stop();
-                                    Navigator.pop(context);
-                                  },
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Exit playlist',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-
-                                SizedBox(height: 15),
-
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap:
-                                      () => Database.setValue(
-                                        'metadataRecognize',
-                                        false,
-                                      ).then(
-                                        (a) => setState(() {
-                                          isMetadataRecognizeEnable = false;
-                                        }),
-                                      ),
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Disable metadataRecognition (will be done)',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap:
-                                      () => Database.setValue(
-                                        'metadataRecognize',
-                                        true,
-                                      ).then(
-                                        (a) => setState(() {
-                                          isMetadataRecognizeEnable = true;
-                                        }),
-                                      ),
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Enable metadataRecognition (will be done)',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                  ),
-                                ),
-
-                                SizedBox(height: 15),
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap: () async {
-                                    await steps(stopSteps: true);
-                                    await player.stop();
-                                    Navigator.pop(context);
-                                    Database.clear();
-                                  },
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Delete database (there will be a button to reset the application settings)',
-                                      style: TextStyle(
-                                        color: const Color.fromARGB(
-                                          255,
-                                          255,
-                                          255,
-                                          255,
+                                          decoration: BoxDecoration(
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 35),
+                                              Icon(
+                                                Icons.interests,
+                                                color: Colors.grey[300],
+                                              ),
+                                              SizedBox(width: 10),
+                                              Text(
+                                                'Main',
+                                                style: TextStyle(
+                                                  color: Colors.grey[300],
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w100,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
+                                        SizedBox(width: 50),
+                                        Container(
+                                          height: 45,
+                                          width: 150,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            borderRadius: BorderRadius.all(
+                                              Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 35),
+                                              Icon(
+                                                Icons.cloud_sync_sharp,
+                                                color: Colors.grey[300],
+                                              ),
+                                              SizedBox(width: 10),
+                                              Text(
+                                                'Server',
+                                                style: TextStyle(
+                                                  color: Colors.grey[300],
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w100,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                                SizedBox(height: 50),
+                                    SizedBox(height: 25),
+                                    Row(
+                                      children: [
+                                        SizedBox(width: 50),
+                                        Text(
+                                          'Playlist',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 5),
+                                    Column(
+                                      children: [
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
 
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap:
-                                      () => saveRecognizedData(
-                                        '42',
-                                        Uint8List(0),
-                                        '42',
-                                        '42',
-                                      ),
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Save example track to recognizedDatabase (will be deleted)',
-                                      style: TextStyle(color: Colors.red),
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(10),
+                                              topRight: Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: InkWell(
+                                            onTap: () {},
+                                            child: Row(
+                                              children: [
+                                                SizedBox(width: 15),
+                                                Text(
+                                                  'Add songs',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(height: 5),
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          child: InkWell(
+                                            onTap: () {
+                                              addFolderToSongs();
+                                              // var oldlist = widget.songs;
+
+                                              // setState(() {
+                                              //   widget.songs = oldlist
+                                              // });
+
+                                              Database.setValue(
+                                                'lastPlaylist',
+                                                songs,
+                                              ); // After initializing the playlist, we add it to the table as the last one
+                                            },
+                                            child: Row(
+                                              children: [
+                                                SizedBox(width: 15),
+                                                Text(
+                                                  'Add Folder',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        SizedBox(height: 5),
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+
+                                            borderRadius: BorderRadius.only(
+                                              bottomLeft: Radius.circular(10),
+                                              bottomRight: Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: InkWell(
+                                            onTap: () {
+                                              // player.stop();
+                                              // _hidePlaylistOverlay();
+                                              // _hideWarningMetadataOverlay();
+                                              // _hideSettingsOverlay();
+
+                                              Navigator.pop(context);
+                                            },
+                                            child: Row(
+                                              children: [
+                                                SizedBox(width: 15),
+                                                Text(
+                                                  'Clear',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 16,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap:
-                                      () => Database.getValue(
-                                        'recognizedTracks',
-                                      ).then((tracks) {
-                                        print(tracks);
-                                      }),
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Get recognizedDatabase (will be deleted)',
-                                      style: TextStyle(color: Colors.red),
+
+                                    SizedBox(height: 25),
+                                    Row(
+                                      children: [
+                                        SizedBox(width: 50),
+                                        Text(
+                                          'UI',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ),
-                                InkWell(
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(15),
-                                  ),
-                                  onTap:
-                                      () =>
-                                          Database.getDirectory().then((value) {
-                                            print(value);
-                                          }),
-                                  child: Container(
-                                    height: 40,
-                                    width: 300,
-                                    color: Color.fromRGBO(77, 77, 77, 0.498),
-                                    child: Text(
-                                      'Get database path (maybe it will be done in the about window or something like that)',
-                                      style: TextStyle(color: Colors.red),
+                                    SizedBox(height: 5),
+                                    Column(
+                                      children: [
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(10),
+                                              topRight: Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 15),
+                                              Text(
+                                                'White theme',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              SizedBox(width: 305),
+                                              Switch(
+                                                value: isWhiteTheme,
+                                                onChanged: (bool value) {
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      isWhiteTheme = value;
+                                                    });
+                                                    setOverlayState(() {
+                                                      isWhiteTheme = value;
+                                                    });
+                                                  }
+
+                                                  // if (isWhiteTheme) {
+                                                  // setState(() {
+                                                  //   themeColor = const Color.fromARGB(255, 220, 220, 220);
+                                                  // });
+                                                  // setOverlayState(() {
+                                                  //   themeColor = const Color.fromARGB(255, 220, 220, 220);
+                                                  // });
+                                                  // }
+                                                },
+                                                activeColor:
+                                                    const Color.fromARGB(
+                                                      255,
+                                                      34,
+                                                      34,
+                                                      34,
+                                                    ),
+                                                activeTrackColor:
+                                                    Colors.grey[300],
+                                                inactiveThumbColor:
+                                                    Colors.grey[300],
+                                                inactiveTrackColor:
+                                                    const Color.fromARGB(
+                                                      255,
+                                                      34,
+                                                      34,
+                                                      34,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 5),
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 15),
+                                              Text(
+                                                'Album art as background',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              SizedBox(width: 215),
+                                              Switch(
+                                                value: isBackgroudArtEnable,
+                                                onChanged: (bool value) {
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      isBackgroudArtEnable =
+                                                          value;
+                                                    });
+                                                    setOverlayState(() {
+                                                      isBackgroudArtEnable =
+                                                          value;
+                                                    });
+                                                  }
+
+                                                  if (!value) {
+                                                    coverArtData = Uint8List(0);
+                                                  } else {
+                                                    FileTags.getTagsFromFile(
+                                                      songs[nowPlayingIndex],
+                                                    ).then((value) {
+                                                      if (mounted) {
+                                                        setState(() {
+                                                          coverArtData =
+                                                              value['albumArt'];
+                                                        });
+                                                      }
+                                                    });
+                                                  }
+                                                },
+                                                activeColor:
+                                                    const Color.fromARGB(
+                                                      255,
+                                                      34,
+                                                      34,
+                                                      34,
+                                                    ),
+                                                activeTrackColor:
+                                                    Colors.grey[300],
+                                                inactiveThumbColor:
+                                                    Colors.grey[300],
+                                                inactiveTrackColor:
+                                                    const Color.fromARGB(
+                                                      255,
+                                                      34,
+                                                      34,
+                                                      34,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 5),
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 15),
+                                              Text(
+                                                'Custom accent color',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              SizedBox(width: 175),
+                                              // TextField(
+
+                                              // ),
+                                              Text(
+                                                'COLORPICKER...',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(height: 5),
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+                                            borderRadius: BorderRadius.only(
+                                              bottomLeft: Radius.circular(10),
+                                              bottomRight: Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 15),
+                                              Text(
+                                                'Transition speed',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              SizedBox(width: 165),
+                                              Slider(
+                                                value: 0,
+                                                onChanged: (value) {},
+                                                thumbColor: Colors.white,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
+
+                                    SizedBox(height: 25),
+
+                                    Row(
+                                      children: [
+                                        SizedBox(width: 50),
+                                        Text(
+                                          'Functional',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    SizedBox(height: 15),
+                                    Column(
+                                      children: [
+                                        Container(
+                                          width: 500,
+                                          height: 50,
+                                          decoration: BoxDecoration(
+                                            // color: themeColor,
+                                            border: Border.all(
+                                              width: 0.2,
+                                              color: Colors.grey,
+                                            ),
+
+                                            borderRadius: BorderRadius.only(
+                                              topLeft: Radius.circular(10),
+                                              topRight: Radius.circular(10),
+                                              bottomLeft: Radius.circular(10),
+                                              bottomRight: Radius.circular(10),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(width: 15),
+                                              Text(
+                                                'Metadata recognize',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              SizedBox(width: 255),
+                                              Switch(
+                                                value:
+                                                    isMetadataRecognizeEnable,
+                                                onChanged: (bool value) {
+                                                  if (mounted) {
+                                                    setState(() {
+                                                      isMetadataRecognizeEnable =
+                                                          value;
+                                                    });
+                                                    setOverlayState(() {
+                                                      isMetadataRecognizeEnable =
+                                                          value;
+                                                    });
+                                                  }
+
+                                                  if (isWhiteTheme) {
+                                                    Database.setValue(
+                                                      'metadataRecognize',
+                                                      true,
+                                                    );
+                                                  } else {
+                                                    Database.setValue(
+                                                      'metadataRecognize',
+                                                      false,
+                                                    );
+                                                  }
+                                                },
+                                                activeColor:
+                                                    const Color.fromARGB(
+                                                      255,
+                                                      34,
+                                                      34,
+                                                      34,
+                                                    ),
+                                                activeTrackColor:
+                                                    Colors.grey[300],
+                                                inactiveThumbColor:
+                                                    Colors.grey[300],
+                                                inactiveTrackColor:
+                                                    const Color.fromARGB(
+                                                      255,
+                                                      34,
+                                                      34,
+                                                      34,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-            ],
+                ],
+              );
+            },
           ),
     );
 
@@ -649,106 +1182,130 @@ class _PlaylistPageState extends State<PlaylistPage>
 
   Uint8List coverArtData = Uint8List.fromList([]);
 
+  // Setting default settings (u know). They will be replaced with user settings upon initialization.
+
+  bool isWhiteTheme = false;
   bool isRepeatEnable = false;
   bool isSliderActive = true;
   bool isPlaylistOpened = false;
   bool isPlayling = false;
   bool isShuffleEnable = false;
   bool isMetadataRecognizeEnable = true;
+  bool isBackgroudArtEnable = true;
 
   final player = AudioPlayer();
   final volumeController = InteractiveSliderController(0.0);
 
-  // var buttonsColor =
+  Color themeColor = Color.fromARGB(255, 34, 34, 34);
+  Color pickerColor = Colors.blue;
 
   final String serverApiURL = '127.0.0.1:5678';
 
   List<String>? trackArtistNames = [];
+  String? selectedFolderPath;
+  List<String> files = [];
+  List<String> selectedFiles = [];
+  String lastSong = '';
 
+  final logger = Logger('mainlogger');
+  final _logDir = getApplicationDocumentsDirectory();
+  // final _logPath = '$_logDir/log.log';
+  File? filePath;
+  String logPath = '';
   // Loading metadata from nowplaying track
-  Future<Map<String, dynamic>> loadTag() async {
-    var trackFilename =
-        songs[nowPlayingIndex].split(r'\').last.split(r'/').last;
+
+  // //
+  Future<void> addFolderToSongs() async {
     try {
-      Tag? tagsFromFile = await AudioTags.read(songs[nowPlayingIndex]);
-      String trackName =
-          tagsFromFile?.title?.trim() ??
-          songs[nowPlayingIndex].split(r'\').last;
-      tagsFromFile?.title?.trim() ?? songs[nowPlayingIndex].split(r'/').last;
+      String? selectedDirectory = await FilePicker.platform.getDirectoryPath();
+      if (selectedDirectory != null) {
+        var files2 = await getFilesFromDirectory(selectedDirectory);
 
-      List<String> trackArtistNames =
-          tagsFromFile?.trackArtist?.trim().isNotEmpty == true
-              ? tagsFromFile!.trackArtist!
-                  .split(',')
-                  .map((e) => e.trim())
-                  .where((e) => e.isNotEmpty)
-                  .toList()
-              : ['Unknown'];
-      String albumName = tagsFromFile?.album?.trim() ?? 'Unknown';
-      String albumArtistName = tagsFromFile?.albumArtist?.trim() ?? 'Unknown';
-      int trackNumber = tagsFromFile?.trackNumber ?? 0;
-      int albumLength = tagsFromFile?.trackTotal ?? 0;
-      int year = tagsFromFile?.year ?? 0;
-      String genre = tagsFromFile?.genre?.trim() ?? 'Unknown';
-      int? discNumber = tagsFromFile?.discNumber;
-
-      String? authorName = 'metadata.authorName';
-      String? writerName = 'metadata.writerName';
-      String? mimeType = 'metadata.mimeType';
-      int? trackDuration = 0;
-      int? bitrate = 0;
-
-      Uint8List albumArt2 = Uint8List(0);
-      if (tagsFromFile?.pictures != null &&
-          tagsFromFile!.pictures!.isNotEmpty) {
-        albumArt2 = tagsFromFile.pictures!.first.bytes ?? Uint8List(0);
+        print(files2);
+        if (files2.isNotEmpty) {
+          for (var i in files2) {
+            if (mounted) {
+              setState(() {
+                songs.add(PathManager.getnormalizePath(i));
+              });
+            }
+          }
+        }
       }
-
-      Map<String, dynamic> allTags = {
-        'trackName': trackName,
-        'trackArtistNames': trackArtistNames,
-        'albumName': albumName,
-        'albumArtistName': albumArtistName,
-        'trackNumber': trackNumber,
-        'albumLength': albumLength,
-        'year': year,
-        'genre': genre,
-        'authorName': authorName,
-        'writerName': writerName,
-        'discNumber': discNumber,
-        'mimeType': mimeType,
-        'trackDuration': trackDuration,
-        'bitrate': bitrate,
-        'albumArt': albumArt2,
-      };
-
-      return allTags;
     } catch (e) {
-      return {
-        'trackName': trackFilename,
-        'trackArtistNames': ['Unknown'],
-        'albumArt': Uint8List(0),
-      };
+      print('An error occurred while retrieving the file folder: $e');
     }
   }
 
-  // //
+  Future<List<String>> getFilesFromDirectory(String directoryPath) async {
+    try {
+      final dir = Directory(directoryPath);
+      final List<String> fileNames = [];
 
+      await for (final entity in dir.list()) {
+        if (entity is File) {
+          if (entity.path.toLowerCase().endsWith('.mp3') ||
+              entity.path.toLowerCase().endsWith('.wav') ||
+              entity.path.toLowerCase().endsWith('.flac') ||
+              entity.path.toLowerCase().endsWith('.aac') ||
+              entity.path.toLowerCase().endsWith('.m4a')) {
+            fileNames.add(entity.path);
+          }
+        }
+      }
+      files = fileNames.map((path) => path.split('/').last).toList();
+      selectedFiles = fileNames;
+
+      return fileNames;
+    } catch (e) {
+      print(
+        'An error occurred while retrieving the selected multiple file: $e',
+      );
+      return [];
+    }
+  }
   // Decode JPG to Uing8List
-  Future<Uint8List> urlImageToUint8List(String imageUrl) async {
-    try {
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode == 200) {
-        return response.bodyBytes;
-      } else {
-        throw Exception('Failed to load image: ${response.statusCode}');
-      }
-    } catch (e) {
-      return Uint8List(0);
-    }
-  }
+  // Future<void> pickFiles() async {
+  //   try {
+  //     FilePickerResult? result = await FilePicker.platform.pickFiles(
+  //       allowMultiple: true,
+  //       type: FileType.audio,
+  //     );
+  //     var selectedFiles = result.paths.map((path) => path!).toList();
+  //     for (var i in selectedFiles) {
 
-  // //
+  //     }
+
+  //   } catch (e) {
+  //     print('An error occurred while retrieving the selected single file: $e');
+  //   }
+  // }
+
+  Future<void> applyTagToPage(Map<String, dynamic> tag) async {
+    setState(() {
+      trackName =
+          (tag['trackName']?.toString().trim().isNotEmpty ?? false)
+              ? tag['trackName'].toString()
+              : PathManager.getFileName(songs[nowPlayingIndex]);
+
+      trackArtistNames =
+          (tag['trackArtistNames'] is List &&
+                  tag['trackArtistNames'].isNotEmpty)
+              ? List<String>.from(
+                tag['trackArtistNames'].where(
+                  (artist) => artist?.toString().trim().isNotEmpty ?? false,
+                ),
+              )
+              : ['Unknown'];
+
+      if (isBackgroudArtEnable) {
+        coverArtData =
+            (tag['albumArt'] is Uint8List) ? tag['albumArt'] : Uint8List(0);
+      } else {
+        coverArtData = Uint8List(0);
+      }
+    });
+  }
 
   // Functional programming class for player management
   Future<void> steps({
@@ -758,19 +1315,19 @@ class _PlaylistPageState extends State<PlaylistPage>
     bool replayStep = false,
   }) async {
     _hideWarningMetadataOverlay();
-    loadTag();
 
     if (nextStep) {
       _currentToken?.cancel();
       final token = CancelToken();
       _currentToken = token;
-
-      setState(() {
-        nowPlayingIndex++;
-        if (nowPlayingIndex >= songs.length) {
-          nowPlayingIndex = 0;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          nowPlayingIndex++;
+          if (nowPlayingIndex >= songs.length) {
+            nowPlayingIndex = 0;
+          }
+        });
+      }
 
       player.stop();
       if (isPlayling) {
@@ -780,26 +1337,11 @@ class _PlaylistPageState extends State<PlaylistPage>
         songDurationWidget = '0:00';
       }
 
-      Map<String, dynamic> a = await loadTag();
+      Map<String, dynamic> a = await FileTags.getTagsFromFile(
+        songs[nowPlayingIndex],
+      );
 
-      setState(() {
-        trackName =
-            (a['trackName']?.toString().trim().isNotEmpty ?? false)
-                ? a['trackName'].toString()
-                : songs[nowPlayingIndex].split(r'\').last;
-
-        trackArtistNames =
-            (a['trackArtistNames'] is List && a['trackArtistNames'].isNotEmpty)
-                ? List<String>.from(
-                  a['trackArtistNames'].where(
-                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
-                  ),
-                )
-                : ['Unknown'];
-
-        coverArtData =
-            (a['albumArt'] is Uint8List) ? a['albumArt'] : Uint8List(0);
-      });
+      await applyTagToPage(a);
 
       if (!fetchedSongs.contains(songs[nowPlayingIndex]) &&
           coverArtData.isEmpty &&
@@ -809,9 +1351,8 @@ class _PlaylistPageState extends State<PlaylistPage>
         final onValue = await Database.getValue('recognizedTracks');
         if (onValue != null) {
           for (var i in onValue) {
-            final filename1 = i['filename'].split(r'/').last.split(r'\').last;
-            final filename2 =
-                songs[nowPlayingIndex].split(r'/').last.split(r'\').last;
+            final filename1 = PathManager.getFileName(i['filename']);
+            final filename2 = PathManager.getFileName(songs[nowPlayingIndex]);
 
             if (filename1 == filename2) {
               coverArtData = i['coverArt'];
@@ -824,22 +1365,26 @@ class _PlaylistPageState extends State<PlaylistPage>
 
         if (!founded) {
           try {
-            Map metadata = await recognizeMetadata(songs[nowPlayingIndex]);
+            Map metadata = await RecognizerService.recognizeMetadata(
+              songs[nowPlayingIndex],
+              serverApiURL,
+            );
 
             if (token.isCancelled) return;
 
             if (metadata.isNotEmpty) {
-              Uint8List coverart = await urlImageToUint8List(
+              Uint8List coverart = await RecognizerService.urlImageToUint8List(
                 metadata['coverarturl'],
               );
 
               if (token.isCancelled) return;
-
-              setState(() {
-                coverArtData = coverart;
-                trackName = metadata['trackname'];
-                trackArtistNames = [metadata['artist']];
-              });
+              if (mounted) {
+                setState(() {
+                  coverArtData = coverart;
+                  trackName = metadata['trackname'];
+                  trackArtistNames = [metadata['artist']];
+                });
+              }
 
               _showWarningMetadataOverlay();
             }
@@ -856,13 +1401,16 @@ class _PlaylistPageState extends State<PlaylistPage>
     }
 
     if (previousStep) {
-      setState(() {
-        _currentToken?.cancel();
-        nowPlayingIndex--;
-        if (nowPlayingIndex < 0) {
-          nowPlayingIndex = songs.length - 1;
-        }
-      });
+      if (mounted) {
+        setState(() {
+          _currentToken?.cancel();
+          nowPlayingIndex--;
+          if (nowPlayingIndex < 0) {
+            nowPlayingIndex = songs.length - 1;
+          }
+        });
+      }
+
       player.stop();
       if (isPlayling) {
         player.play(DeviceFileSource(songs[nowPlayingIndex]));
@@ -871,26 +1419,11 @@ class _PlaylistPageState extends State<PlaylistPage>
         songDurationWidget = '0:00';
       }
 
-      Map<String, dynamic> a = await loadTag();
+      Map<String, dynamic> a = await FileTags.getTagsFromFile(
+        songs[nowPlayingIndex],
+      );
 
-      setState(() {
-        trackName =
-            (a['trackName']?.toString().trim().isNotEmpty ?? false)
-                ? a['trackName'].toString()
-                : songs[nowPlayingIndex].split(r'\').last;
-
-        trackArtistNames =
-            (a['trackArtistNames'] is List && a['trackArtistNames'].isNotEmpty)
-                ? List<String>.from(
-                  a['trackArtistNames'].where(
-                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
-                  ),
-                )
-                : ['Unknown'];
-
-        coverArtData =
-            (a['albumArt'] is Uint8List) ? a['albumArt'] : Uint8List(0);
-      });
+      await applyTagToPage(a);
 
       if (!fetchedSongs.contains(songs[nowPlayingIndex]) &&
           coverArtData.isEmpty &&
@@ -898,9 +1431,8 @@ class _PlaylistPageState extends State<PlaylistPage>
         final onValue = await Database.getValue('recognizedTracks');
         if (onValue != null) {
           for (var i in onValue) {
-            final filename1 = i['filename'].split(r'/').last.split(r'\').last;
-            final filename2 =
-                songs[nowPlayingIndex].split(r'/').last.split(r'\').last;
+            final filename1 = PathManager.getFileName(i['filename']);
+            final filename2 = PathManager.getFileName(songs[nowPlayingIndex]);
 
             if (filename1 == filename2) {
               coverArtData = i['coverArt'];
@@ -915,16 +1447,18 @@ class _PlaylistPageState extends State<PlaylistPage>
     }
 
     if (stopSteps) {
-      setState(() {
-        isPlayling = !isPlayling;
+      if (mounted) {
+        setState(() {
+          isPlayling = !isPlayling;
 
-        if (!isPlayling) {
-          player.pause();
-        } else {
-          player.play(DeviceFileSource(songs[nowPlayingIndex]));
-          Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
-        }
-      });
+          if (!isPlayling) {
+            player.pause();
+          } else {
+            player.play(DeviceFileSource(songs[nowPlayingIndex]));
+            Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+          }
+        });
+      }
     }
 
     if (replayStep) {
@@ -940,27 +1474,11 @@ class _PlaylistPageState extends State<PlaylistPage>
         songDurationWidget = '0:00';
       }
 
-      Map<String, dynamic> a = await loadTag();
+      Map<String, dynamic> a = await FileTags.getTagsFromFile(
+        songs[nowPlayingIndex],
+      );
 
-      setState(() {
-        
-        trackName =
-            (a['trackName']?.toString().trim().isNotEmpty ?? false)
-                ? a['trackName'].toString()
-                : songs[nowPlayingIndex].split(r'\').last;
-
-        trackArtistNames =
-            (a['trackArtistNames'] is List && a['trackArtistNames'].isNotEmpty)
-                ? List<String>.from(
-                  a['trackArtistNames'].where(
-                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
-                  ),
-                )
-                : ['Unknown'];
-
-        coverArtData =
-            (a['albumArt'] is Uint8List) ? a['albumArt'] : Uint8List(0);
-      });
+      await applyTagToPage(a);
 
       if (!fetchedSongs.contains(songs[nowPlayingIndex]) &&
           coverArtData.isEmpty &&
@@ -970,9 +1488,8 @@ class _PlaylistPageState extends State<PlaylistPage>
         final onValue = await Database.getValue('recognizedTracks');
         if (onValue != null) {
           for (var i in onValue) {
-            final filename1 = i['filename'].split(r'/').last.split(r'\').last;
-            final filename2 =
-                songs[nowPlayingIndex].split(r'/').last.split(r'\').last;
+            final filename1 = PathManager.getFileName(i['filename']);
+            final filename2 = PathManager.getFileName(songs[nowPlayingIndex]);
 
             if (filename1 == filename2) {
               coverArtData = i['coverArt'];
@@ -985,22 +1502,26 @@ class _PlaylistPageState extends State<PlaylistPage>
 
         if (!founded) {
           try {
-            Map metadata = await recognizeMetadata(songs[nowPlayingIndex]);
+            Map metadata = await RecognizerService.recognizeMetadata(
+              songs[nowPlayingIndex],
+              serverApiURL,
+            );
 
             if (token.isCancelled) return;
 
             if (metadata.isNotEmpty) {
-              Uint8List coverart = await urlImageToUint8List(
+              Uint8List coverart = await RecognizerService.urlImageToUint8List(
                 metadata['coverarturl'],
               );
 
               if (token.isCancelled) return;
-
-              setState(() {
-                coverArtData = coverart;
-                trackName = metadata['trackname'];
-                trackArtistNames = [metadata['artist']];
-              });
+              if (mounted) {
+                setState(() {
+                  coverArtData = coverart;
+                  trackName = metadata['trackname'];
+                  trackArtistNames = [metadata['artist']];
+                });
+              }
 
               _showWarningMetadataOverlay();
             }
@@ -1012,7 +1533,6 @@ class _PlaylistPageState extends State<PlaylistPage>
           }
         }
       }
-
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
     }
@@ -1054,7 +1574,11 @@ class _PlaylistPageState extends State<PlaylistPage>
   // Setup track complete listener
   void _setupPlayerListeners() {
     player.onPlayerComplete.listen((_) async {
-      await steps(nextStep: true);
+      if (isRepeatEnable == false) {
+        await steps(nextStep: true);
+      } else {
+        await steps(replayStep: true);
+      }
     });
   }
 
@@ -1098,13 +1622,15 @@ class _PlaylistPageState extends State<PlaylistPage>
         timing += '$time_inseconds';
       }
 
-      setState(() {
-        currentPosition = timing;
-        songDurationWidget = _duration;
-        songProgress = current_pos;
+      if (mounted) {
+        setState(() {
+          currentPosition = timing;
+          songDurationWidget = _duration;
+          songProgress = current_pos;
 
-        if (isSliderActive) volumeController.value = current_pos / 100;
-      });
+          if (isSliderActive) volumeController.value = current_pos / 100;
+        });
+      }
     });
   }
 
@@ -1112,39 +1638,19 @@ class _PlaylistPageState extends State<PlaylistPage>
 
   // CHANGING VOLUME
   void changeVolume(volume) {
-    setState(() {
-      volumeValue = volume;
-      player.setVolume(volumeValue);
-    });
+    if (mounted) {
+      setState(() {
+        volumeValue = volume;
+        player.setVolume(volumeValue);
+      });
+    }
+
     Database.setValue('volume', volumeValue);
   }
 
   // //
 
   // Save recognized data to database
-  void saveRecognizedData(filename, coverArtUint8, artistName, trackName) {
-    Database.getValue('recognizedTracks').then((recognizedTracksList) {
-      List<Map<String, dynamic>> tracksList = [];
-
-      if (recognizedTracksList != null) {
-        for (var track in recognizedTracksList) {
-          final convertedTrack = track.cast<String, dynamic>();
-          tracksList.add(convertedTrack);
-        }
-      }
-
-      Map<String, dynamic> addToList = {
-        'filename': filename,
-        'coverArt': coverArtUint8,
-        'artistName': artistName,
-        'trackName': trackName,
-      };
-
-      tracksList.add(addToList);
-
-      Database.setValue('recognizedTracks', tracksList);
-    });
-  }
 
   // Get track timing by 0-100 value from timeline slider
   Future<int> getSecondsByValue(double value) async {
@@ -1155,159 +1661,47 @@ class _PlaylistPageState extends State<PlaylistPage>
     return 0;
   }
 
-  // //
 
-  // Getting all tracks in Map list
-  Future<List<Map<String, dynamic>>> getAllTrackWithMetadata() async {
-    // eto pizdec...
-    List<Map<String, dynamic>> result = [];
-    for (var song in songs) {
-      var trackName = song.split(r'/').last.split(r'\').last;
-      try {
-        Tag? tag = await AudioTags.read(song);
-        String trackName =
-            tag?.title?.trim() ?? song.split(r'/').last.split(r'\').last;
-
-        List<String> trackArtistNames =
-            tag?.trackArtist?.trim().isNotEmpty == true
-                ? tag!.trackArtist!
-                    .split(',')
-                    .map((e) => e.trim())
-                    .where((e) => e.isNotEmpty)
-                    .toList()
-                : ['Unknown'];
-        String albumName = tag?.album?.trim() ?? 'Unknown';
-        String albumArtistName = tag?.albumArtist?.trim() ?? 'Unknown';
-        int trackNumber = tag?.trackNumber ?? 0;
-        int albumLength = tag?.trackTotal ?? 0;
-        int year = tag?.year ?? 0;
-        String genre = tag?.genre?.trim() ?? 'Unknown';
-        int? discNumber = tag?.discNumber;
-
-        String? authorName = 'metadata.authorName';
-        String? writerName = 'metadata.writerName';
-        String? mimeType = 'metadata.mimeType';
-        int? trackDuration = 0;
-        int? bitrate = 0;
-
-        Uint8List albumArt2 = Uint8List(0);
-        if (tag?.pictures != null && tag!.pictures!.isNotEmpty) {
-          albumArt2 = tag.pictures!.first.bytes ?? Uint8List(0);
-        }
-
-        Map<String, dynamic> allTags = {
-          'trackName': trackName,
-          'trackArtistNames': trackArtistNames,
-          'albumName': albumName,
-          'albumArtistName': albumArtistName,
-          'trackNumber': trackNumber,
-          'albumLength': albumLength,
-          'year': year,
-          'genre': genre,
-          'authorName': authorName,
-          'writerName': writerName,
-          'discNumber': discNumber,
-          'mimeType': mimeType,
-          'trackDuration': trackDuration,
-          'bitrate': bitrate,
-          'albumArt': albumArt2,
-        };
-
-        trackName =
-            (allTags['trackName']?.toString().trim().isNotEmpty ?? false)
-                ? allTags['trackName'].toString()
-                : song.split(r'\').last.split(r'/').last;
-
-        trackArtistNames =
-            (allTags['trackArtistNames'] is List &&
-                    allTags['trackArtistNames'].isNotEmpty)
-                ? List<String>.from(
-                  allTags['trackArtistNames'].where(
-                    (artist) => artist?.toString().trim().isNotEmpty ?? false,
-                  ),
-                )
-                : ['Unknown'];
-
-        albumArt2 =
-            (allTags['albumArt'] is Uint8List)
-                ? allTags['albumArt']
-                : Uint8List(0);
-
-        Map<String, dynamic> filetag = {
-          'trackName': trackName,
-          'trackArtistNames': trackArtistNames,
-          'albumName': albumName,
-          'albumArtistName': albumArtistName,
-          'trackNumber': trackNumber,
-          'albumLength': albumLength,
-          'year': year,
-          'genre': genre,
-          'authorName': authorName,
-          'writerName': writerName,
-          'discNumber': discNumber,
-          'mimeType': mimeType,
-          'trackDuration': trackDuration,
-          'bitrate': bitrate,
-          'albumArt': albumArt2,
-        };
-
-        result.add(filetag);
-      } catch (e) {
-        result.add({
-          'trackName': trackName,
-          'trackArtistNames': ['Unknown'],
-          'albumArt': Uint8List(0),
-        });
-      }
-    }
-    return result;
-  }
+Future<void> initLogger(String filePath2) async {
+  filePath = File(filePath2);
+  Logger.root.level = Level.ALL; // Уровень логирования (ALL, INFO, WARNING и т.д.)
+  Logger.root.onRecord.listen((record) {
+    final logLine = '${DateTime.now()} - ${record.level.name}: ${record.message}';
+    filePath?.writeAsStringSync('$logLine\n', mode: FileMode.append);
+  });
+}
 
   // //
 
   // Recognizing metadata from audio using api
-  Future<Map<String, dynamic>> recognizeMetadata(String track) async {
-    var filename = track.split(r'/').last.split(r'\').last;
-    var query = 'FILENAME:$filename'; // Make a request in free format
-    try {
-      final response = await http.get(
-        Uri.parse(
-          'http://$serverApiURL/get_metadata?data=$query',
-        ), // Make a request in free format
-      );
-
-      var jsonResponseFromAPI =
-          jsonDecode(response.body) as Map<String, dynamic>;
-
-      var trackname = jsonResponseFromAPI['title'];
-      var artist = jsonResponseFromAPI['artists'][0]['name'];
-      var coverarturl = jsonResponseFromAPI['cover_art_url'];
-
-      Map<String, dynamic> trackData = {
-        'trackname': '$trackname',
-        'artist': '$artist',
-        'coverarturl': '$coverarturl',
-      };
-      print(trackData);
-      return Future.value(trackData);
-    } catch (e) {
-      return Future.value({}); // If we don't find anything, we rest.
-    }
-  }
-
   // //
 
   // Handling page loading
   @override
   void initState() {
+  getApplicationDocumentsDirectory().then((value) {
+    final logPath = '${value.path}/log.log';
+    initLogger(logPath).then((_) {});
+  });
+
     super.initState();
     _setupPlayerListeners();
+    logger.info("setupPlayerListeners initalizing...");
     progressState();
+    logger.info("Progress state initalizing...");
+
     Database.init();
+    logger.info("Database initalizing...");
+
+    
     if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
-      setState(() {
-        nowPlayingIndex = 0;
-      });
+    logger.info("Last song initalizing...");
+
+      if (mounted) {
+        setState(() {
+          nowPlayingIndex = 0;
+        });
+      }
     }
 
     // INITIALIZING PLAYLIST, INFO MESSAGE AND SETTINGS .... YOU KNOW
@@ -1355,45 +1749,57 @@ class _PlaylistPageState extends State<PlaylistPage>
     var songList = widget.songs;
 
     for (int i = 0; i < songList.length; i++) {
+    logger.info("Updating songs list...");
+
       // As a crutch, we fill in an alternative playlist variable instead of the main widget.songs variable
-      songs.add(songList[i]);
+      songs.add(PathManager.getnormalizePath(songList[i]));
     }
 
-    if (widget.lastSong != '') {
+    if (PathManager.getnormalizePath(widget.lastSong) != '') {
       // Get the last listened track from the previous page
       var lastIndex = songs.indexWhere(
-        (path) => path.endsWith(widget.lastSong),
+        (path) => path.endsWith(PathManager.getnormalizePath(widget.lastSong)),
       );
 
       if (lastIndex != -1) {
-        setState(() {
-          nowPlayingIndex = lastIndex;
-        });
+        if (mounted) {
+          setState(() {
+            nowPlayingIndex = lastIndex;
+          });
+        }
       }
     }
 
-    loadTag().then((tags) {
+    FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
       // Loading the cover of the active track
-      setState(() {
-        print(tags['trackName']);
-        if (tags['trackName'] == '') {
-          trackName = songs[nowPlayingIndex].split(r'\').last;
-        } else {
-          trackName = tags['trackName'];
-        }
+    logger.info("Getting tag from song...");
 
-        if (tags['trackArtistNames'][0] == "") {
-          trackArtistNames = ['Unknown'];
-        } else {
-          trackArtistNames = tags['trackArtistNames'];
-        }
-        coverArtData = tags['albumArt'];
-      });
+      if (mounted) {
+        setState(() {
+          print(tags['trackName']);
+          if (tags['trackName'] == '') {
+            trackName = PathManager.getFileName(songs[nowPlayingIndex]);
+          } else {
+            trackName = tags['trackName'];
+          }
+
+          if (tags['trackArtistNames'][0] == "") {
+            trackArtistNames = ['Unknown'];
+          } else {
+            trackArtistNames = tags['trackArtistNames'];
+          }
+          coverArtData = tags['albumArt'];
+        });
+      }
     });
 
     Database.getKeys().then((value) {
+    logger.info("Get keys from database...");
+
       // If the application starts for the first time, we set some standard values
       if (value.isEmpty) {
+    logger.info("Putting in database...");
+
         Database.setValue('shuffle', false);
         Database.setValue('volume', 0.7);
         Database.setValue('metadataRecognize', true);
@@ -1416,25 +1822,33 @@ class _PlaylistPageState extends State<PlaylistPage>
       (volume) => {
         if (volume != null)
           {
-            setState(() {
-              volumeValue = volume;
-              player.setVolume(volume);
-            }),
+            if (mounted)
+              {
+                setState(() {
+                  volumeValue = volume;
+                  player.setVolume(volume);
+                }),
+              },
           },
       },
     );
     Database.getValue('metadataRecognize').then((value) {
       if (value != null) {
-        setState(() {
-          isMetadataRecognizeEnable = value;
-        });
+        if (mounted) {
+          setState(() {
+            isMetadataRecognizeEnable = value;
+          });
+        }
       }
       if (value == null) {
         Database.setValue('metadataRecognize', true).then(
           (value) => {
-            setState(() {
-              isMetadataRecognizeEnable = true;
-            }),
+            if (mounted)
+              {
+                setState(() {
+                  isMetadataRecognizeEnable = true;
+                }),
+              },
           },
         );
       }
@@ -1448,14 +1862,16 @@ class _PlaylistPageState extends State<PlaylistPage>
   // Handling exit from player
   @override
   void dispose() {
+    _currentToken?.cancel();
+
     player.dispose();
-    super.dispose();
     playlistAnimationController.dispose();
+
     playlistOverlayEntry?.remove();
-    warningMetadataAnimationController.dispose();
     warningMetadataOverlayEntry?.remove();
-    settingsAnimationController.dispose();
     settingsOverlayEntry?.remove();
+
+    super.dispose();
   }
 
   // //
@@ -1536,7 +1952,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                           width: 500,
 
                           child: Text(
-                            trackName.split(r'\').last,
+                            PathManager.getFileName(trackName),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
@@ -1616,6 +2032,8 @@ class _PlaylistPageState extends State<PlaylistPage>
                             ),
                           ],
                         ),
+
+                        SizedBox(height: 5),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1763,7 +2181,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                         ),
 
                         // // NEXT SONG BUTTON
-                        SizedBox(height: 15),
+                        SizedBox(height: 5),
 
                         // VOLUME SLIDER
                         SizedBox(
@@ -1867,9 +2285,11 @@ class _PlaylistPageState extends State<PlaylistPage>
                                 highlightColor: Color.fromARGB(255, 40, 40, 42),
 
                                 onTap: () async {
-                                  setState(() {
-                                    isShuffleEnable = !isShuffleEnable;
-                                  });
+                                  if (mounted) {
+                                    setState(() {
+                                      isShuffleEnable = !isShuffleEnable;
+                                    });
+                                  }
 
                                   if (isShuffleEnable == true) {
                                     await createNewShuffledPlaylist(
@@ -1961,9 +2381,11 @@ class _PlaylistPageState extends State<PlaylistPage>
                                 splashColor: Colors.transparent,
                                 highlightColor: Color.fromARGB(255, 40, 40, 42),
                                 onTap: () {
-                                  setState(() {
-                                    isRepeatEnable = !isRepeatEnable;
-                                  });
+                                  if (mounted) {
+                                    setState(() {
+                                      isRepeatEnable = !isRepeatEnable;
+                                    });
+                                  }
                                 },
                                 child: Container(
                                   height: 35,
@@ -2004,7 +2426,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                                                 ),
 
                                         child: Icon(
-                                          Icons.repeat_outlined,
+                                          Icons.repeat_one_outlined,
                                           color:
                                               isRepeatEnable
                                                   ? Color.fromRGBO(
