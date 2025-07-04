@@ -3,11 +3,13 @@ import 'dart:ui';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'playlist_page.dart';
-import 'package:QUARK/database.dart';
+// import 'package:media_kit/media_kit.dart';
+import 'package:quark/database.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Database.init();
+  // MediaKit.ensureInitialized();
   runApp(const MyApp());
 }
 
