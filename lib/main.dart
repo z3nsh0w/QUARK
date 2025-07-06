@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'playlist_page.dart';
+import 'package:quark/database.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Database.init();
   runApp(const MyApp());
 }
 
@@ -36,13 +38,16 @@ class _MyHomePageState extends State<MyHomePage> {
   String? selectedFolderPath;
   List<String> files = [];
   List<String> selectedFiles = [];
+  String lastSong = '';
 
   void navigateToPlaylist() {
     if (selectedFiles.isNotEmpty) {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => PlaylistPage(songs: selectedFiles),
+          builder:
+              (context) =>
+                  PlaylistPage(songs: selectedFiles, lastSong: lastSong),
         ),
       );
     }
@@ -61,7 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
         navigateToPlaylist();
       }
     } catch (e) {
-      print('ERR LINE 71: $e');
+      print('An error occurred while retrieving the file folder: $e');
     }
   }
 
@@ -80,7 +85,7 @@ class _MyHomePageState extends State<MyHomePage> {
         navigateToPlaylist();
       }
     } catch (e) {
-      print('ERR LINE 90: $e');
+      print('An error occurred while retrieving the selected single file: $e');
     }
   }
 
@@ -106,9 +111,45 @@ class _MyHomePageState extends State<MyHomePage> {
         selectedFiles = fileNames;
       });
     } catch (e) {
-      print('ERR LINE 116: $e');
+      print(
+        'An error occurred while retrieving the selected multiple file: $e',
+      );
     }
   }
+
+  Future<void> restorePlaylist() async {
+    try {
+      final dynamic lastPlaylist = await Database.getValue('lastPlaylist');
+      final dynamic lastSong2 = await Database.getValue('lastPlaylistTrack');
+
+      if (lastPlaylist != null && lastPlaylist is List<dynamic>) {
+        setState(() {
+          selectedFiles = List<String>.from(lastPlaylist);
+          restorePlaylistButtonText = 'Restore playlist';
+        });
+
+        if (lastSong2 != null) {
+          setState(() {
+            lastSong = lastSong2;
+          });
+        }
+
+        navigateToPlaylist();
+      } else {
+        setState(() {
+          restorePlaylistButtonText =
+              'Ooops... Your previous playlist is empty.';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        restorePlaylistButtonText = 'Ooops... Your previous playlist is empty.';
+      });
+      print('Error: $e');
+    }
+  }
+
+  String restorePlaylistButtonText = 'Restore playlist';
 
   @override
   Widget build(BuildContext context) {
@@ -161,26 +202,49 @@ class _MyHomePageState extends State<MyHomePage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-                    SizedBox(height: 20),
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        onTap: pickFolder,
+                    SizedBox(height: 30),
+
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
                         child: Container(
                           height: 45,
                           width: 350,
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 39, 48, 59),
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              'Restore playlist',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: restorePlaylist,
+                              child: Center(
+                                child: Text(
+                                  restorePlaylistButtonText,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -188,51 +252,96 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                     ),
                     SizedBox(height: 15),
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        onTap: pickFolder,
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
                         child: Container(
                           height: 45,
                           width: 350,
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 40, 40, 42),
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              'Add folder',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: pickFolder,
+                              child: Center(
+                                child: Text(
+                                  'Add folder',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
                     ),
+
                     SizedBox(height: 15),
-                    Material(
-                      color: Colors.transparent,
-                      borderRadius: BorderRadius.all(Radius.circular(20)),
-                      child: InkWell(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        onTap: pickFiles,
+
+                    ClipRRect(
+                      borderRadius: const BorderRadius.all(Radius.circular(15)),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 175, sigmaY: 175),
                         child: Container(
                           height: 45,
                           width: 350,
                           decoration: BoxDecoration(
-                            color: const Color.fromARGB(255, 40, 40, 42),
-                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            color: Colors.white.withOpacity(0.2),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                            borderRadius: const BorderRadius.all(
+                              Radius.circular(20),
+                            ),
+                            gradient: LinearGradient(
+                              begin: Alignment.topRight,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Colors.white.withOpacity(0.15),
+                                Colors.white.withOpacity(0.05),
+                              ],
+                            ),
                           ),
-                          child: Center(
-                            child: Text(
-                              'Add song',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.all(Radius.circular(20)),
+                            child: InkWell(
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(10),
+                              ),
+                              onTap: () {},
+                              child: Center(
+                                child: Text(
+                                  'Quark server & Spotify',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
