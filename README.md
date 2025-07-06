@@ -1,43 +1,32 @@
-# QUARK (code name: Musician )  
+![quark icon](/assets/icon.png) 
 
-## 🚨 WARNING: THIS REPO IS FOR SOURCE CODE ONLY
-**At the moment there are no ready-made window layouts for operating systems (folders windows, linux macos).**
-**The product is in pre-alpha testing, from which it will be released in patch 0.99 ;)**
-**If You want to download finished and compiled files you need to go to the releases tab**
+# quark - lightweight, easy to use and beautiful? audio player 
 
-## 🚀 About  
-**Musician is an open-source music player without the bloat.**
-**It is a lightweight audio player inspired by the philosophy of **Amberol**. It still has no delusions of grandeur, if you just want to play music available on your local system, then this is your choice.**
+--- 
+
+## Features 🌟
+ + Support for all audio file formats (including FLAC recorded in mp3))
+ + Full desktop support across multiple platforms
+ + Some will be released tomorrow.
+
+## Coming Soon 🔥: 
+ + Release 1 
+ + Performance improvements  
+ + Drag-and-drop support 
+ + Yandex music integration 
+ + Automatic loading of metadata for tracks 
+
+---
+
+## Installation
+ ❗ To use player on Windows you need to install Microsoft Visual C++ Runtime.
+ 
+ For installation on Windows/Linux you can use our [installer](https://github.com/z3nsh0w/quark-installer) or download the Portable version from the Releases tab
+ The solution for MacOS will be tomorrow
+
+---
 
 ![Musician Screenshot](appphoto.png)
 ![Musician Screenshot](appphoto1.png)
 
 ---
-
-**Tech Stack**:  
- Powered by **Flutter**  
- Cross-platform (only-desktop) (Windows/Linux/macOS)  
-
----
-
-## 🗺️ Roadmap :
-
-### 🔥 Coming Soon:  
-- 🗃️ Optimized database for playlists  
-- ⚡ Performance improvements  
-- ✨ Drag-and-drop support  
-
-### 💡 Future Ideas (dreams):  
-- 📹 Video playback support  
-- ⬇️ FLAC downloads from open sources  
-- 🌐 Spotify/Deezer API integration
-
----
-
-## 🛠 Installation :
-**STEPS:**
- - Download source
- - Create flutter project
- - run `flutter pub get`
- - run `flutter build {your_operating_system}`
- - run `flutter run`
