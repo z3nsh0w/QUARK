@@ -19,7 +19,8 @@
 ---
 
 ## Installation
- ❗ To use player on Windows you need to install Microsoft Visual C++ Runtime.
+ > [!WARNING]
+ > To use player on Windows you need to install Microsoft Visual C++ Runtime.
  
  For installation on Windows/Linux you can use our [installer](https://github.com/z3nsh0w/quark-installer) or download the Portable version from the Releases tab
  The solution for MacOS will be tomorrow
