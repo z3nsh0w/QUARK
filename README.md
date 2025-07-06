@@ -1,4 +1,4 @@
-![quark icon](/assets/icon.png) 
+![quark icon](/assets/icon1024.png) 
 
 # quark - lightweight, easy to use and beautiful? audio player 
 
