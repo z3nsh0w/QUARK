@@ -12,6 +12,7 @@
 ## Coming Soon 🔥: 
  + Release 1 
  + Performance improvements  
+ + OS native media control  
  + Drag-and-drop support 
  + Yandex music integration 
  + Automatic loading of metadata for tracks 
