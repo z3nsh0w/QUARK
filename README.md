@@ -1,4 +1,4 @@
-![quark icon](/assets/icon512.png) 
+<img align="center" width="512" height="512" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png">
 
 # quark - lightweight, easy to use and beautiful? audio player 
 
