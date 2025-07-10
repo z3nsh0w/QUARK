@@ -1,8 +1,10 @@
-<p align="center">
-  <img width="512" height="512" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png">
-</p>
-# quark - lightweight, easy to use and beautiful? audio player 
+<p align="center">  
+  <img width="512" height="512" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png">  
+</p>  
 
+<p align="center">  
+  # quark - lightweight, easy to use and beautiful? audio player   
+  </p>  
 --- 
 
 ## Features:  
