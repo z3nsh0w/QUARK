@@ -5,7 +5,8 @@ import 'package:file_picker/file_picker.dart';
 import 'playlist_page.dart';
 import 'package:quark/database.dart';
 import 'package:smtc_windows/smtc_windows.dart';
-// import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -151,21 +152,15 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
       print('Error: $e');
     }
   }
-  // late final WebViewController controller;
 
-  // final WebViewController controller =
-  //       WebViewController.fromPlatformCreationParams(PlatformWebViewControllerCreationParams());
-// final controller = WebViewController()
-//   ..setJavaScriptMode(JavaScriptMode.unrestricted)
-//   ..setBackgroundColor(const Color(0x00000000));
-
+  InAppWebViewController? webViewController;
 
   void showYMLoginWebview() {
     warningMetadataOverlayEntry = OverlayEntry(
       builder:
           (context) => Positioned(
             child: SlideTransition(
-              position: warningMetadataOffsetAnimation,
+              position: getYMTokenOffsetAnimation,
               child: Center(child: Material(
                 color: Colors.transparent,
                 child: GestureDetector(
@@ -180,8 +175,8 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 75, sigmaY: 75),
                       child: Container(
-                        width: 550,
-                        height: 1000,
+                        width: 400,
+                        height: 690,
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.2),
                           border: Border.all(
@@ -201,10 +196,44 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
                           ),
                         ),
                         child: Column(
-                          children: [
-                            // WebViewWidget(controller: controller)
-                          ],
-                        ),
+                            children: [
+                              Expanded(
+                                child: InAppWebView(
+                                  initialUrlRequest: URLRequest(url: WebUri('https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d')),
+                                  initialSettings: InAppWebViewSettings(
+                                    javaScriptEnabled: true,
+                                  ),
+                                  onWebViewCreated: (controller) {
+                                    webViewController = controller;
+                                  },
+                                  onLoadStart: (controller, url) {
+                                    print('Начал загрузку: $url');
+                                    if (url.toString().contains('access_token')) {
+                                    try {
+                                      final token = url.toString().split('#')[1].split('&')[0].replaceAll('access_token=', '');
+                                      if (token.length > 3) {
+                                        print(token);
+                                        Database.setValue("ymtoken", token);
+                                          // if (warningMetadataOverlayEntry != null) {
+                                          //   warningMetadataOverlayEntry!.remove();
+                                          //   warningMetadataOverlayEntry = null;
+                                          // }
+                                          // // Опционально: сброс анимации
+                                          // warningMetadataAnimationController.reverse();
+                                      }
+                                    } catch (ex) {}
+                                  }
+                                  },
+                                  onLoadStop: (controller, url) {
+                                    print('Загрузка завершена: $url');
+                                  },
+                                  onUpdateVisitedHistory: (controller, url, androidIsReload) {
+                                    print('Переход на: $url');
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                       ),
                     ),
                   ),
@@ -215,68 +244,41 @@ class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
     );
 
     Overlay.of(context).insert(warningMetadataOverlayEntry!);
-    warningMetadataAnimationController.forward();
+    getYMTokenAnimationController.forward();
   }
 
   void hideYMLoginWebview() {
-    warningMetadataAnimationController.reverse().then((_) {
+    getYMTokenAnimationController.reverse().then((_) {
       warningMetadataOverlayEntry?.remove();
       warningMetadataOverlayEntry = null;
     });
   }
 
 
-  Future<void> getYMToken() async {
-    String YMLoginUrl = 'https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d';
-    
-  //   final webview = await WebviewWindow.create();
-  //   webview.addOnUrlRequestCallback((url) {
-  //     if (url.contains('access_token')) {
-  //       try {
-  //         final token = url.split('#')[1].split('&')[0].replaceAll('access_token=', '');
-  //         if (token.length > 3) {
-  //           //validToken
-  //           webview.close();
-  //           BlocProvider.of<AuthCubit>(context).setAuthToken(token);
-  //           Navigator.of(context).pop(true);
-  //         }
-  //       } catch (ex) {}
-  //     }
-  //   });
-  //   webview.launch(
-  //       "https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d");
-  // }
-
-  }
-
   @override
   void initState() {
     super.initState();
-    warningMetadataAnimationController = AnimationController(
+    getYMTokenAnimationController = AnimationController(
       duration: Duration(milliseconds: (650).round()),
       vsync: this,
     );
 
-    warningMetadataOffsetAnimation = Tween<Offset>(
+    getYMTokenOffsetAnimation = Tween<Offset>(
       begin: const Offset(0, 1.0),
       end: Offset.zero,
     ).animate(
       CurvedAnimation(
-        parent: warningMetadataAnimationController,
+        parent: getYMTokenAnimationController,
         curve: Curves.ease,
       ),
     );
 
-    // controller = WebViewController()
-    //   ..loadRequest(
-    //     Uri.parse('https://flutter.dev'),
-    //   );
-
   }
+  
   String restorePlaylistButtonText = 'Restore playlist';
 
-  late AnimationController warningMetadataAnimationController;
-  late Animation<Offset> warningMetadataOffsetAnimation;
+  late AnimationController getYMTokenAnimationController;
+  late Animation<Offset> getYMTokenOffsetAnimation;
   OverlayEntry? warningMetadataOverlayEntry;
 
   @override

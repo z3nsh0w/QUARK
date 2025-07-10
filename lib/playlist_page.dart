@@ -15,9 +15,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
 
-
 // some classes
-
 
 class PathManager {
   static String getFileName(String filePath) {
@@ -77,9 +75,9 @@ class FileTags {
         'bitrate': 0,
         'albumArt':
             tagsFromFile.pictures.isNotEmpty
-                ? tagsFromFile.pictures.first.bytes?? Uint8List(0)
+                ? tagsFromFile.pictures.first.bytes ?? Uint8List(0)
                 : Uint8List(0),
-        'albumArtPNG': tagsFromFile.pictures.first.pictureType
+        'albumArtPNG': tagsFromFile.pictures.first.pictureType,
       };
     } catch (e) {
       return {
@@ -177,7 +175,6 @@ class RecognizerService {
   }
 }
 
-
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
   final String lastSong;
@@ -189,9 +186,10 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage>
     with TickerProviderStateMixin {
-
   void _showPlaylistOverlay() {
-    if (isPlaylistAnimating) {return;}
+    if (isPlaylistAnimating) {
+      return;
+    }
     if (isPlaylistOpened) {
       playlistAnimationController.reverse().then((_) {
         playlistOverlayEntry?.remove();
@@ -1373,7 +1371,16 @@ class _PlaylistPageState extends State<PlaylistPage>
                                         //     ],
                                         //   ),
                                         // ),
-                                        Positioned(top: 0, left: 100, child: Text("made by Penises DG. No rights reserved.", style: TextStyle(color: Colors.grey[500]),), )
+                                        Positioned(
+                                          top: 0,
+                                          left: 100,
+                                          child: Text(
+                                            "made by Penises DG. No rights reserved.",
+                                            style: TextStyle(
+                                              color: Colors.grey[500],
+                                            ),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -1469,6 +1476,7 @@ class _PlaylistPageState extends State<PlaylistPage>
 
   List<Map<String, dynamic>>? cachedPlaylist;
   late SMTCWindows smtc;
+
   // Working with additiongal songs that we can take from settings
   Future<void> addFolderToSongs() async {
     try {
@@ -1547,10 +1555,10 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
       smtc.updateMetadata(
         MusicMetadata(
-        title: trackName,
-        album: 'almbu',
-        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
-        artist: trackArtistNames?.join(', ') ?? 'Unknown',
+          title: trackName,
+          album: 'almbu',
+          albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+          artist: trackArtistNames?.join(', ') ?? 'Unknown',
         ),
       );
     });
@@ -1558,8 +1566,7 @@ class _PlaylistPageState extends State<PlaylistPage>
 
   // I was too lazy to make a class with an audio player, so we live like this for now
   Future<void> steps({
-  // Ну не надо, ну не стукай
-
+    // Ну не надо, ну не стукай
     bool nextStep = false,
     bool previousStep = false,
     bool stopSteps = false,
@@ -1649,14 +1656,7 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
-      smtc.updateMetadata(
-        MusicMetadata(
-        title: trackName,
-        album: 'almbu',
-        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
-        artist: trackArtistNames?.join(', ') ?? 'Unknown',
-        ),
-      );
+      updateSMTC();
     }
 
     if (previousStep) {
@@ -1704,14 +1704,7 @@ class _PlaylistPageState extends State<PlaylistPage>
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
 
-      smtc.updateMetadata(
-          MusicMetadata(
-          title: trackName,
-          album: 'almbu',
-          albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
-          artist: trackArtistNames?.join(', ') ?? 'Unknown',
-          ),
-        );
+      updateSMTC();
     }
 
     if (stopSteps) {
@@ -1727,9 +1720,7 @@ class _PlaylistPageState extends State<PlaylistPage>
             player.play(DeviceFileSource(songs[nowPlayingIndex]));
             Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
           }
-
         });
-
       }
     }
 
@@ -1807,14 +1798,7 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
-      smtc.updateMetadata(
-        MusicMetadata(
-        title: trackName,
-        album: 'almbu',
-        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
-        artist: trackArtistNames?.join(', ') ?? 'Unknown',
-        ),
-      );
+      updateSMTC();
     }
   }
 
@@ -1940,7 +1924,17 @@ class _PlaylistPageState extends State<PlaylistPage>
     });
   }
 
-  // Handling page loading
+  // Updating native media information
+  Future<void> updateSMTC() async {
+    smtc.updateMetadata(
+      MusicMetadata(
+        title: trackName,
+        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+        artist: trackArtistNames?.join(', ') ?? 'Unknown',
+      ),
+    );
+  }
+
   @override
   void initState() {
     // print(widget.lastSong);
@@ -1957,8 +1951,6 @@ class _PlaylistPageState extends State<PlaylistPage>
 
     Database.init();
     logger.info("Database initalizing...");
-
-
 
     // INITIALIZING PLAYLIST, INFO MESSAGE AND SETTINGS .... YOU KNOW
 
@@ -2011,14 +2003,12 @@ class _PlaylistPageState extends State<PlaylistPage>
       songs.add(PathManager.getnormalizePath(songList[i]));
     }
 
-    
     Database.getValue('autoTrackSorting').then((value) {
       if (value != null && mounted) {
         setState(() {
           autoTrackSorting = value;
           if (value) {
             songs.sort();
-            // nowPlayingIndex = 0;
             FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
               applyTagToPage(tags);
             });
@@ -2032,12 +2022,10 @@ class _PlaylistPageState extends State<PlaylistPage>
       var lastIndex = songs.indexWhere(
         (path) => path.endsWith(PathManager.getnormalizePath(widget.lastSong)),
       );
-          print(lastIndex);
-          print(widget.lastSong);
-          print(PathManager.getnormalizePath(widget.lastSong));
-          print(songs);
-
-
+      print(lastIndex);
+      print(widget.lastSong);
+      print(PathManager.getnormalizePath(widget.lastSong));
+      print(songs);
 
       if (lastIndex != -1) {
         if (mounted) {
@@ -2047,16 +2035,16 @@ class _PlaylistPageState extends State<PlaylistPage>
           });
         }
       }
-    //   if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
-    //   logger.info("Last song initalizing...");
+      //   if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
+      //   logger.info("Last song initalizing...");
 
-    //   if (mounted) {
-    //     setState(() {
-    //       print(nowPlayingIndex);
-    //       nowPlayingIndex = 0;
-    //     });
-    //   }
-    // }
+      //   if (mounted) {
+      //     setState(() {
+      //       print(nowPlayingIndex);
+      //       nowPlayingIndex = 0;
+      //     });
+      //   }
+      // }
     }
 
     FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
@@ -2110,7 +2098,7 @@ class _PlaylistPageState extends State<PlaylistPage>
     Database.getValue('lastPlaylist').then(
       (value) => logger.info("Last playlist: $value"),
     ); // Getting data from the table and set the values
-    
+
     Database.getValue('volume').then(
       (volume) => {
         if (volume != null && mounted)
@@ -2161,7 +2149,7 @@ class _PlaylistPageState extends State<PlaylistPage>
         );
       }
     });
-    
+
     Database.getValue("transitionSpeed").then((value) {
       if (value != null && mounted) {
         setState(() {
@@ -2330,14 +2318,15 @@ class _PlaylistPageState extends State<PlaylistPage>
                               child: SizedBox(
                                 height: 45,
                                 child: Text(
-                                PathManager.getFileName(trackName),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
+                                  PathManager.getFileName(trackName),
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              )),
+                              ),
                             ),
 
                             Text(

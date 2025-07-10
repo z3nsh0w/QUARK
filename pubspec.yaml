@@ -25,6 +25,10 @@ dependencies:
   audio_metadata_reader: ^1.4.2
   flutter_rust_bridge: 2.5.0
   smtc_windows: ^1.0.0
+  audio_service_mpris: ^0.2.0
+  audio_service: ^0.18.18
+  flutter_inappwebview: ^6.1.5
+  
 
 dev_dependencies:
   flutter_test:
