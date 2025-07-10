@@ -21,7 +21,7 @@
 
 ## Installation
  > [!WARNING]
- > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe).  
+ > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
  
  For installation on Windows/Linux you can use our [installer](https://github.com/z3nsh0w/quark-installer) or download the Portable version from the Releases tab  
  
