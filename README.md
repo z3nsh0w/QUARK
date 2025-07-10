@@ -34,7 +34,7 @@
 ---
 
 ## System requirements  
- + Windows 8.1 or older, Macos 10.14 or older, Linux 5.6 or older  
+ + Windows 8.1 or older, Macos 10.15 or older, Gnome 42, KDE 5 or older
  + Visual C++ Runtime on Windows  
  + File Chooser Dialog dependency on Linux  
 
