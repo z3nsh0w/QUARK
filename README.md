@@ -27,10 +27,11 @@
  > [!WARNING]
  > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
    
- + For full installation on Windows/Linux you can download quarkInstaller.exe (quarkInstaller.appImage).  
+ + For full installation on Windows/Linux you can download quarkInstaller.exe (quarkInstaller.appImage).
  + For portable use download system-release.zip  
   
- + You can find all the necessary files on the [releases tab](https://github.com/z3nsh0w/QUARK/releases)
+ + You can find all the necessary files on the [releases tab](https://github.com/z3nsh0w/QUARK/releases)  
+
  
  The solution for MacOS will be tomorrow  
 
