@@ -44,7 +44,7 @@
 
 ---
 
-### quarkInstaller
+### Quark Installer
  > [!WARNING]  
  > If you have an operating system older than Windows 10 1803, then you will need to install Webview2 Runtime.
  > 
