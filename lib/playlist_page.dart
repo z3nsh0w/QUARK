@@ -5,14 +5,19 @@ import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:interactive_slider/interactive_slider.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:http/http.dart' as http;
+import 'package:smtc_windows/smtc_windows.dart';
 import 'package:quark/database.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as path;
 import 'package:file_picker/file_picker.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
+
+
+// some classes
+
 
 class PathManager {
   static String getFileName(String filePath) {
@@ -35,9 +40,10 @@ class PathManager {
 class FileTags {
   static Future<Map<String, dynamic>> getTagsFromFile(String filePath) async {
     try {
-      Tag? tagsFromFile = await AudioTags.read(
-        PathManager.getnormalizePath(filePath),
-      );
+      final track = File(filePath);
+
+      final tagsFromFile = readMetadata(track, getImage: true);
+
       if (tagsFromFile == null) {
         return {
           'trackName': PathManager.getFileName(filePath),
@@ -50,19 +56,19 @@ class FileTags {
         'trackName':
             tagsFromFile?.title?.trim() ?? PathManager.getFileName(filePath),
         'trackArtistNames':
-            tagsFromFile?.trackArtist?.trim().isNotEmpty == true
-                ? tagsFromFile!.trackArtist!
+            tagsFromFile?.artist?.trim().isNotEmpty == true
+                ? tagsFromFile!.artist!
                     .split(',')
                     .map((e) => e.trim())
                     .where((e) => e.isNotEmpty)
                     .toList()
                 : ['Unknown'],
         'albumName': tagsFromFile.album?.trim() ?? 'Unknown',
-        'albumArtistName': tagsFromFile.albumArtist?.trim() ?? 'Unknown',
+        'albumArtistName': tagsFromFile.album?.trim() ?? 'Unknown',
         'trackNumber': tagsFromFile.trackNumber ?? 0,
         'albumLength': tagsFromFile.trackTotal ?? 0,
         'year': tagsFromFile.year ?? 0,
-        'genre': tagsFromFile.genre?.trim() ?? 'Unknown',
+        'genre': tagsFromFile.genres ?? 'Unknown',
         'discNumber': tagsFromFile.discNumber,
         'authorName': 'metadata.authorName',
         'writerName': 'metadata.writerName',
@@ -71,8 +77,9 @@ class FileTags {
         'bitrate': 0,
         'albumArt':
             tagsFromFile.pictures.isNotEmpty
-                ? tagsFromFile.pictures.first.bytes ?? Uint8List(0)
+                ? tagsFromFile.pictures.first.bytes?? Uint8List(0)
                 : Uint8List(0),
+        'albumArtPNG': tagsFromFile.pictures.first.pictureType
       };
     } catch (e) {
       return {
@@ -170,6 +177,7 @@ class RecognizerService {
   }
 }
 
+
 class PlaylistPage extends StatefulWidget {
   final List<String> songs;
   final String lastSong;
@@ -181,8 +189,10 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage>
     with TickerProviderStateMixin {
+
   void _showPlaylistOverlay() {
-    if (isPlaylistAnimating || isPlaylistOpened) {
+    if (isPlaylistAnimating) {return;}
+    if (isPlaylistOpened) {
       playlistAnimationController.reverse().then((_) {
         playlistOverlayEntry?.remove();
         playlistOverlayEntry = null;
@@ -1188,8 +1198,6 @@ class _PlaylistPageState extends State<PlaylistPage>
                                             borderRadius: BorderRadius.only(
                                               topLeft: Radius.circular(10),
                                               topRight: Radius.circular(10),
-                                              bottomLeft: Radius.circular(10),
-                                              bottomRight: Radius.circular(10),
                                             ),
                                           ),
                                           child: Row(
@@ -1365,6 +1373,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                                         //     ],
                                         //   ),
                                         // ),
+                                        Positioned(top: 0, left: 100, child: Text("made by Penises DG. No rights reserved.", style: TextStyle(color: Colors.grey[500]),), )
                                       ],
                                     ),
                                   ],
@@ -1456,11 +1465,10 @@ class _PlaylistPageState extends State<PlaylistPage>
   CancelToken? _currentToken;
 
   final logger = Logger('mainlogger');
-  // final _logPath = '$_logDir/log.log';
   File? filePath;
 
   List<Map<String, dynamic>>? cachedPlaylist;
-
+  late SMTCWindows smtc;
   // Working with additiongal songs that we can take from settings
   Future<void> addFolderToSongs() async {
     try {
@@ -1483,8 +1491,6 @@ class _PlaylistPageState extends State<PlaylistPage>
       );
     }
   }
-
-  // //
 
   // Working with additiongal directories that we can take from settings
   Future<List<String>> getFilesFromDirectory(String directoryPath) async {
@@ -1514,7 +1520,6 @@ class _PlaylistPageState extends State<PlaylistPage>
       return [];
     }
   }
-  // //
 
   // Applying existing tag to page
   Future<void> applyTagToPage(Map<String, dynamic> tag) async {
@@ -1540,10 +1545,16 @@ class _PlaylistPageState extends State<PlaylistPage>
       } else {
         coverArtData = Uint8List(0);
       }
+      smtc.updateMetadata(
+        MusicMetadata(
+        title: trackName,
+        album: 'almbu',
+        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+        artist: trackArtistNames?.join(', ') ?? 'Unknown',
+        ),
+      );
     });
   }
-
-  // //
 
   // I was too lazy to make a class with an audio player, so we live like this for now
   Future<void> steps({
@@ -1638,6 +1649,14 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+      smtc.updateMetadata(
+        MusicMetadata(
+        title: trackName,
+        album: 'almbu',
+        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+        artist: trackArtistNames?.join(', ') ?? 'Unknown',
+        ),
+      );
     }
 
     if (previousStep) {
@@ -1684,6 +1703,15 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+
+      smtc.updateMetadata(
+          MusicMetadata(
+          title: trackName,
+          album: 'almbu',
+          albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+          artist: trackArtistNames?.join(', ') ?? 'Unknown',
+          ),
+        );
     }
 
     if (stopSteps) {
@@ -1693,11 +1721,15 @@ class _PlaylistPageState extends State<PlaylistPage>
 
           if (!isPlayling) {
             player.pause();
+            smtc.setPlaybackStatus(PlaybackStatus.paused);
           } else {
+            smtc.setPlaybackStatus(PlaybackStatus.playing);
             player.play(DeviceFileSource(songs[nowPlayingIndex]));
             Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
           }
+
         });
+
       }
     }
 
@@ -1775,10 +1807,16 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+      smtc.updateMetadata(
+        MusicMetadata(
+        title: trackName,
+        album: 'almbu',
+        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+        artist: trackArtistNames?.join(', ') ?? 'Unknown',
+        ),
+      );
     }
   }
-
-  // //
 
   // Working with shuffle
   Future<void> createNewShuffledPlaylist({
@@ -1806,8 +1844,6 @@ class _PlaylistPageState extends State<PlaylistPage>
     }
   }
 
-  // //
-
   // Setup track complete listener
   void _setupPlayerListeners() {
     player.onPlayerComplete.listen((_) async {
@@ -1818,8 +1854,6 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
     });
   }
-
-  // //
 
   // Progressing track playback
   void progressState() {
@@ -1871,8 +1905,6 @@ class _PlaylistPageState extends State<PlaylistPage>
     });
   }
 
-  // //
-
   // Changing volume
   void changeVolume(volume) {
     if (mounted) {
@@ -1884,8 +1916,6 @@ class _PlaylistPageState extends State<PlaylistPage>
 
     Database.setValue('volume', volumeValue);
   }
-
-  // //
 
   // Get track timing by 0-100 value from timeline slider
   Future<int> getSecondsByValue(double value) async {
@@ -1910,11 +1940,10 @@ class _PlaylistPageState extends State<PlaylistPage>
     });
   }
 
-  // //
-
   // Handling page loading
   @override
   void initState() {
+    // print(widget.lastSong);
     getApplicationDocumentsDirectory().then((value) {
       final logPath = '${value.path}/latestquarkaudio.log';
       initLogger(logPath).then((_) {});
@@ -1929,15 +1958,7 @@ class _PlaylistPageState extends State<PlaylistPage>
     Database.init();
     logger.info("Database initalizing...");
 
-    if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
-      logger.info("Last song initalizing...");
 
-      if (mounted) {
-        setState(() {
-          nowPlayingIndex = 0;
-        });
-      }
-    }
 
     // INITIALIZING PLAYLIST, INFO MESSAGE AND SETTINGS .... YOU KNOW
 
@@ -1989,30 +2010,17 @@ class _PlaylistPageState extends State<PlaylistPage>
       // As a crutch, we fill in an alternative playlist variable instead of the main widget.songs variable
       songs.add(PathManager.getnormalizePath(songList[i]));
     }
+
+    
     Database.getValue('autoTrackSorting').then((value) {
       if (value != null && mounted) {
         setState(() {
           autoTrackSorting = value;
           if (value) {
             songs.sort();
-            nowPlayingIndex = 0;
+            // nowPlayingIndex = 0;
             FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
-              if (mounted) {
-                setState(() {
-                  if (tags['trackName'] == '') {
-                    trackName = PathManager.getFileName(songs[nowPlayingIndex]);
-                  } else {
-                    trackName = tags['trackName'];
-                  }
-
-                  if (tags['trackArtistNames'][0] == "") {
-                    trackArtistNames = ['Unknown'];
-                  } else {
-                    trackArtistNames = tags['trackArtistNames'];
-                  }
-                  coverArtData = tags['albumArt'];
-                });
-              }
+              applyTagToPage(tags);
             });
           }
         });
@@ -2024,14 +2032,31 @@ class _PlaylistPageState extends State<PlaylistPage>
       var lastIndex = songs.indexWhere(
         (path) => path.endsWith(PathManager.getnormalizePath(widget.lastSong)),
       );
+          print(lastIndex);
+          print(widget.lastSong);
+          print(PathManager.getnormalizePath(widget.lastSong));
+          print(songs);
+
+
 
       if (lastIndex != -1) {
         if (mounted) {
           setState(() {
+            print('4242');
             nowPlayingIndex = lastIndex;
           });
         }
       }
+    //   if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
+    //   logger.info("Last song initalizing...");
+
+    //   if (mounted) {
+    //     setState(() {
+    //       print(nowPlayingIndex);
+    //       nowPlayingIndex = 0;
+    //     });
+    //   }
+    // }
     }
 
     FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
@@ -2085,6 +2110,7 @@ class _PlaylistPageState extends State<PlaylistPage>
     Database.getValue('lastPlaylist').then(
       (value) => logger.info("Last playlist: $value"),
     ); // Getting data from the table and set the values
+    
     Database.getValue('volume').then(
       (volume) => {
         if (volume != null && mounted)
@@ -2135,6 +2161,7 @@ class _PlaylistPageState extends State<PlaylistPage>
         );
       }
     });
+    
     Database.getValue("transitionSpeed").then((value) {
       if (value != null && mounted) {
         setState(() {
@@ -2148,9 +2175,54 @@ class _PlaylistPageState extends State<PlaylistPage>
         cachedPlaylist = value;
       });
     });
-  }
 
-  // //
+    smtc = SMTCWindows(
+      metadata: MusicMetadata(
+        title: trackName,
+        album: 'almbu',
+        albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+        artist: trackArtistNames?.join(', ') ?? 'Unknown',
+      ),
+      // Which buttons to show in the OS media player
+      config: const SMTCConfig(
+        fastForwardEnabled: true,
+        nextEnabled: true,
+        pauseEnabled: true,
+        playEnabled: true,
+        rewindEnabled: true,
+        prevEnabled: true,
+        stopEnabled: true,
+      ),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        smtc.buttonPressStream.listen((event) {
+          switch (event) {
+            case PressedButton.play:
+              steps(stopSteps: true);
+              break;
+            case PressedButton.pause:
+              steps(stopSteps: true);
+              break;
+            case PressedButton.next:
+              steps(nextStep: true);
+              break;
+            case PressedButton.previous:
+              steps(previousStep: true);
+              break;
+            case PressedButton.stop:
+              smtc.disableSmtc();
+              break;
+            default:
+              break;
+          }
+        });
+      } catch (e) {
+        debugPrint("Error: $e");
+      }
+    });
+  }
 
   // Handling exit from player
   @override
@@ -2163,11 +2235,11 @@ class _PlaylistPageState extends State<PlaylistPage>
     playlistOverlayEntry?.remove();
     warningMetadataOverlayEntry?.remove();
     settingsOverlayEntry?.remove();
-
+    smtc.disableSmtc();
+    smtc.dispose();
     super.dispose();
   }
 
-  // //
   @override
   Widget build(BuildContext context) {
     return ClipRect(
@@ -2255,7 +2327,9 @@ class _PlaylistPageState extends State<PlaylistPage>
                             SizedBox(
                               width: 500,
 
-                              child: Text(
+                              child: SizedBox(
+                                height: 45,
+                                child: Text(
                                 PathManager.getFileName(trackName),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
@@ -2263,7 +2337,7 @@ class _PlaylistPageState extends State<PlaylistPage>
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                 ),
-                              ),
+                              )),
                             ),
 
                             Text(

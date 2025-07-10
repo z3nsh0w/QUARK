@@ -3,13 +3,14 @@ import 'dart:ui';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'playlist_page.dart';
-// import 'package:media_kit/media_kit.dart';
 import 'package:quark/database.dart';
+import 'package:smtc_windows/smtc_windows.dart';
+// import 'package:webview_flutter/webview_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Database.init();
-  // MediaKit.ensureInitialized();
+  await SMTCWindows.initialize();
   runApp(const MyApp());
 }
 
@@ -36,7 +37,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with TickerProviderStateMixin {
   String? selectedFolderPath;
   List<String> files = [];
   List<String> selectedFiles = [];
@@ -150,8 +151,133 @@ class _MyHomePageState extends State<MyHomePage> {
       print('Error: $e');
     }
   }
+  // late final WebViewController controller;
 
+  // final WebViewController controller =
+  //       WebViewController.fromPlatformCreationParams(PlatformWebViewControllerCreationParams());
+// final controller = WebViewController()
+//   ..setJavaScriptMode(JavaScriptMode.unrestricted)
+//   ..setBackgroundColor(const Color(0x00000000));
+
+
+  void showYMLoginWebview() {
+    warningMetadataOverlayEntry = OverlayEntry(
+      builder:
+          (context) => Positioned(
+            child: SlideTransition(
+              position: warningMetadataOffsetAnimation,
+              child: Center(child: Material(
+                color: Colors.transparent,
+                child: GestureDetector(
+                  onHorizontalDragEnd: (details) {
+                    if (details.primaryVelocity! > 100) {
+                      hideYMLoginWebview();
+                    }
+                  },
+
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.all(Radius.circular(15)),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 75, sigmaY: 75),
+                      child: Container(
+                        width: 550,
+                        height: 1000,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                            width: 1,
+                          ),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(20),
+                          ),
+                          gradient: LinearGradient(
+                            begin: Alignment.topRight,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Colors.white.withOpacity(0.15),
+                              Colors.white.withOpacity(0.05),
+                            ],
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            // WebViewWidget(controller: controller)
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            )),
+          ),
+    );
+
+    Overlay.of(context).insert(warningMetadataOverlayEntry!);
+    warningMetadataAnimationController.forward();
+  }
+
+  void hideYMLoginWebview() {
+    warningMetadataAnimationController.reverse().then((_) {
+      warningMetadataOverlayEntry?.remove();
+      warningMetadataOverlayEntry = null;
+    });
+  }
+
+
+  Future<void> getYMToken() async {
+    String YMLoginUrl = 'https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d';
+    
+  //   final webview = await WebviewWindow.create();
+  //   webview.addOnUrlRequestCallback((url) {
+  //     if (url.contains('access_token')) {
+  //       try {
+  //         final token = url.split('#')[1].split('&')[0].replaceAll('access_token=', '');
+  //         if (token.length > 3) {
+  //           //validToken
+  //           webview.close();
+  //           BlocProvider.of<AuthCubit>(context).setAuthToken(token);
+  //           Navigator.of(context).pop(true);
+  //         }
+  //       } catch (ex) {}
+  //     }
+  //   });
+  //   webview.launch(
+  //       "https://oauth.yandex.ru/authorize?response_type=token&client_id=23cabbbdc6cd418abb4b39c32c41195d");
+  // }
+
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    warningMetadataAnimationController = AnimationController(
+      duration: Duration(milliseconds: (650).round()),
+      vsync: this,
+    );
+
+    warningMetadataOffsetAnimation = Tween<Offset>(
+      begin: const Offset(0, 1.0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: warningMetadataAnimationController,
+        curve: Curves.ease,
+      ),
+    );
+
+    // controller = WebViewController()
+    //   ..loadRequest(
+    //     Uri.parse('https://flutter.dev'),
+    //   );
+
+  }
   String restorePlaylistButtonText = 'Restore playlist';
+
+  late AnimationController warningMetadataAnimationController;
+  late Animation<Offset> warningMetadataOffsetAnimation;
+  OverlayEntry? warningMetadataOverlayEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -335,10 +461,10 @@ class _MyHomePageState extends State<MyHomePage> {
                               borderRadius: BorderRadius.all(
                                 Radius.circular(10),
                               ),
-                              onTap: () {},
+                              onTap: () {showYMLoginWebview();},
                               child: Center(
                                 child: Text(
-                                  'Quark server & Spotify',
+                                  'Yandex Music',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 18,
