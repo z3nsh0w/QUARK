@@ -5,6 +5,7 @@
 <h1 align="center" >  
   Quark - lightweight, easy to use and beautiful? audio player   
 </h1>  
+
 --- 
 
 ## Features:  
