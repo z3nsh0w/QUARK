@@ -1,16 +1,45 @@
-# quark
+![quark icon](/assets/icon512.png) 
 
-A new Flutter project.
+# quark - lightweight, easy to use and beautiful? audio player 
 
-## Getting Started
+--- 
 
-This project is a starting point for a Flutter application.
+## Features 🌟
+ + Support for all audio file formats (including FLAC recorded in mp3))
+ + Full desktop support across multiple platforms
+ + Some will be released tomorrow.
 
-A few resources to get you started if this is your first Flutter project:
+## Coming Soon 🔥: 
+ + Release 1 
+ + Performance improvements  
+ + OS native media control  
+ + Drag-and-drop support 
+ + Yandex music integration 
+ + Automatic loading of metadata for tracks 
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+---
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Installation
+ > [!WARNING]
+ > To use player on Windows you need to install Microsoft Visual C++ Runtime.  
+ 
+ For installation on Windows/Linux you can use our [installer](https://github.com/z3nsh0w/quark-installer) or download the Portable version from the Releases tab  
+ 
+ The solution for MacOS will be tomorrow  
+
+---
+
+## System requirements  
+ + Windows 8.1 or older, Macos 10.14 or older, Linux 5.6 or older  
+ + Screen resolution 1600*900 or higher  
+ + Visual C++ Runtime on Windows  
+ + File Chooser Dialog dependency on Linux  
+ + Speakers.  
+ + Eyes. 
+ + Ears. 
+
+
+![Musician Screenshot](appphoto.png)
+![Musician Screenshot](appphoto1.png)
+
+---
