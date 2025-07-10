@@ -3,7 +3,7 @@
 </p>  
 
 <h1 align="center" >  
-  Quark - lightweight, easy to use and beautiful? audio player   
+  QUARK - lightweight, easy to use and beautiful? audio player   
 </h1>  
 
 --- 
