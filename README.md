@@ -27,7 +27,7 @@
  > [!WARNING]
  > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
  
- For installation on Windows/Linux you can use our [installer](https://github.com/z3nsh0w/quark-installer) or download the Portable version from the Releases tab  
+ For full installation on Windows/Linux you can download quarkInstaller.exe (quarkInstaller.appImage). For portable use download system-release.zip
  
  The solution for MacOS will be tomorrow  
 
@@ -38,7 +38,17 @@
  + Visual C++ Runtime on Windows  
  + File Chooser Dialog dependency on Linux  
 
+---
 
+### quarkInstaller
+ > [!WARNING]  
+ > If you have an operating system older than Windows 10 1803, then you will need to install Webview2 Runtime.
+ > 
+ > On Linux systems, you need to have libwebkit2gtk or qtwebengine (usually they are pre-installed in popular distributions).  
+
+  You can find the source code of the installer in the [nearby repository](https://github.com/z3nsh0w/quark-installer/)
+
+  
 ![Musician Screenshot](appphoto.png)
 ![Musician Screenshot](appphoto1.png)
 
