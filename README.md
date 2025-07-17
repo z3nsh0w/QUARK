@@ -38,15 +38,16 @@
 ---
 
 ## System requirements  
- + Windows 10 1703 or older, Macos 10.15 or older, Gnome 42, KDE 5 or older
+ + Windows 10 1809 or older, Macos 10.15 or older, Linux uncertainty
  + Visual C++ Runtime on Windows  
- + File Chooser Dialog dependency on Linux  
+ + File Chooser Dialog dependency on Linux
+ + Stable internet (for using Yandex.Music)
 
 ---
 
 ### Quark Installer
  > [!WARNING]  
- > If you have an operating system older than Windows 10 1803, then you will need to install Webview2 Runtime.
+ > If you have an operating system older than Windows 10 1809, you will need to install Webview2 Runtime.
  > 
  > On Linux systems, you need to have libwebkit2gtk or qtwebengine (usually they are pre-installed in popular distributions).  
 
