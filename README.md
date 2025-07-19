@@ -18,22 +18,19 @@
  + Ability to listen to and save your playlists from Yandex Music (immediately with track tags).  
  + Automatic login to your account and getting a token to work with Yandex Music  
  
- There are currently several limitations:  
- 0. NO LINUX SUPPORT... I'M CRYING...  
- 
- 1. No online support for real-time work (work without saving local playlists). Playlists are completely cached on your device. If desired, they can be exported from the %temp%/quark folder.  
- 
- 2. Only listening to user playlists is available.  
- 
- 3. Works only with a Yandex Plus subscription  
- 
- The following functionality will be added in the near future:  
+ #### The following functionality will be added in the near future:  
  + changing user playlists  
  + searching for tracks across all Yandex Music  
  + mixing Yandex Music and local tracks.  
  + loading local tracks into Yandex Music  
  + ability to select track loading quality.  
- + display of short video clips just like in Yandex Music Mobile  
+ + display of short video clips just like in Yandex Music Mobile
+
+ #### There are currently several limitations:  
+ + 0. NO LINUX SUPPORT... I'M CRYING...  
+ + 1. No online support for real-time work (work without saving local playlists). Playlists are completely cached on your device. If desired, they can be exported from the %temp%/quark folder.  
+ + 2. Only listening to user playlists is available.  
+ + 3. Works only with a Yandex Plus subscription  
 
 ## Coming Soon:  
  + release 1 
