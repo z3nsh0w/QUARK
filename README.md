@@ -1,4 +1,4 @@
-![quark icon](../assets/icon512.png) 
+![quark icon](https://github.com/z3nsh0w/QUARK/blob/main/assets/icon512.png?raw=true) 
 
 # quark - lightweight, easy to use and beautiful? audio player 
 
