@@ -27,10 +27,10 @@
  + display of short video clips just like in Yandex Music Mobile
 
  #### There are currently several limitations:  
- + 0. NO LINUX SUPPORT... I'M CRYING...  
- + 1. No online support for real-time work (work without saving local playlists). Playlists are completely cached on your device. If desired, they can be exported from the %temp%/quark folder.  
- + 2. Only listening to user playlists is available.  
- + 3. Works only with a Yandex Plus subscription  
+ - NO LINUX SUPPORT... I'M CRYING...  
+ - No online support for real-time work (work without saving local playlists). Playlists are completely cached on your device. If desired, they can be exported from the %temp%/quark folder.  
+ - Only listening to user playlists is available.  
+ - Works only with a Yandex Plus subscription  
 
 ## Coming Soon:  
  + release 1 
