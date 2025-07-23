@@ -72,6 +72,9 @@
 
   You can find the source code of the installer in the [nearby repository](https://github.com/z3nsh0w/quark-installer/)
 
+
+## Who's here?
+**Made by Penises Development Group (Penises DG) = Made by z3nsh0w & aror**
   
 ![Musician Screenshot](appphoto.png)
 ![Musician Screenshot](appphoto1.png)
