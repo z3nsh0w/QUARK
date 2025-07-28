@@ -1,71 +1,95 @@
-<p align="center">  
-  <img width="512" height="512" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png">  
-</p>  
+# QUARK
 
-<h1 align="center" >  
-  QUARK - lightweight, easy to use and beautiful? audio player   
-</h1>  
+<p align="center">
+  <img width="322" height="322" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png" alt="QUARK Logo">
+</p>
 
---- 
+<h1 align="center">
+  <strong>Lightweight, easy to use and beautiful audio player</strong>
+</h1>
 
-## Features:  
- + Support for all audio file formats (including FLAC recorded in mp3))
- + Yandex music integration  
- + Full desktop support across multiple platforms
- + Some will be released tomorrow.
+<p align="center">
+  <a href="https://quarkaudio.github.io/">For a more beautiful description, see the website</a>
+</p>
 
----
+<div align="center">
 
-<a align="center" href="https://quarkaudio.github.io/" >
-Quark site
-</a>
+![Release](https://img.shields.io/github/v/release/z3nsh0w/QUARK?style=flat-square)
+![Downloads](https://img.shields.io/github/downloads/z3nsh0w/QUARK/total?style=flat-square)
+![License](https://img.shields.io/github/license/z3nsh0w/QUARK?style=flat-square)
 
----
-
-## Coming Soon:  
- + Release 1.2 
- + Performance improvements  
- + OS native media control across multiple platforms  
- + Drag-and-drop support  
- + Automatic loading of metadata for tracks
- + Micro clips  
- + Multilanguage
- + Yandex music update  
+</div>
 
 ---
+
+## Features
+
+- **Universal Audio Formats Support**
+- **Yandex Music Integration**
+- **Cross-Platform**
+- **Beautiful Design**
+
+## Coming Soon in Release 1.2
+
+- **Optimized Performance**
+- **OS-Native Media Controls**
+- **Drag & Drop Functionality**
+- **Automatic Metadata Fetching**
+- **Micro Clips**
+- **Multilingual UI**
+- **Enhanced Yandex Music**
+- **Resource Saving Mode**
 
 ## Installation
+
+### Installation Options
+
+Choose the method that works best for you:
+
+1. **Full Installation** - Download the `quark-installer` for a complete setup
+2. **Portable Version** - Get the `{system}-release.zip` for portable use
+
+### Downloads
+
+All files are available in the [**Releases**](https://github.com/z3nsh0w/QUARK/releases) section
+
+> **Note:** macOS version coming soon (waiting for our dev to grace us with their attention)
+
+### 🖥 System Requirements
+
+| Platform | Requirements |
+|----------|-------------|
+| **Windows** | Microsoft Visual C++ Runtime |
+| **macOS** | macOS 10.15+ |
+| **Linux** | Modern distribution, File Chooser Dialog dependency |
+| **Internet** | Stable connection (for Yandex Music features) |
+
+### ⚠ Important Notes
+
  > [!WARNING]
- > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
-   
- + For full installation on Windows/Linux you can download quarkInstaller.exe (quarkInstaller.appImage).
- + For portable use download system-release.zip  
-  
- + You can find all the necessary files on the [releases tab](https://github.com/z3nsh0w/QUARK/releases)  
+ > To use player on Windows older than 1809 you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe). 
 
- 
- The solution for MacOS will be tomorrow  
+**For Linux Users:**
+- Requires `libwebkit2gtk` or `qtwebengine` (usually pre-installed on popular distributions)
 
----
+### 🛠 Installer
 
-## System requirements  
- + Windows 10 1809 or older, Macos 10.15 or older, Linux uncertainty
- + Visual C++ Runtime on Windows  
- + File Chooser Dialog dependency on Linux
- + Stable internet (for using Yandex.Music)
+The installer source code is available in our [separate repository](https://github.com/z3nsh0w/quark-installer/)
 
----
+## Screenshots
 
-### Quark Installer
- > [!WARNING]  
- > If you have an operating system older than Windows 10 1809, you will need to install Webview2 Runtime.
- > 
- > On Linux systems, you need to have libwebkit2gtk or qtwebengine (usually they are pre-installed in popular distributions).  
+<p align="center">
+  <img src="appphoto.png" alt="QUARK Interface" width="45%">
+  <img src="appphoto1.png" alt="QUARK Player" width="45%">
+</p>
 
-  You can find the source code of the installer in the [nearby repository](https://github.com/z3nsh0w/quark-installer/)
+## Development Team
 
-  
-![Musician Screenshot](appphoto.png)
-![Musician Screenshot](appphoto1.png)
+**Made by Penises Development Group (Penises DG)**
+- [@z3nsh0w](https://github.com/z3nsh0w)
+- [@aror](https://github.com/Aror1)
 
+## License
+
+#### This project is licensed under MIT license. See the `LICENSE` file for details.
 ---
