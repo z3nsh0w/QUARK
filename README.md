@@ -22,25 +22,25 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- **🎧 Universal Audio Formats Support**
-- **🎶 Yandex Music Integration**
-- **💻 Cross-Platform**
-- **🎨 Beautiful Design**
+- **Universal Audio Formats Support**
+- **Yandex Music Integration**
+- **Cross-Platform**
+- **Beautiful Design**
 
-## 🚀 Coming Soon in Release 1.2
+## Coming Soon in Release 1.2
 
-- **⚡ Optimized Performance**
-- **🎛️ OS-Native Media Controls**
-- **📂 Drag & Drop Functionality**
-- **📋 Automatic Metadata Fetching**
-- **🎬 Micro Clips**
-- **🌍 Multilingual UI**
-- **🔧 Enhanced Yandex Music**
-- **💾 Resource Saving Mode**
+- **Optimized Performance**
+- **OS-Native Media Controls**
+- **Drag & Drop Functionality**
+- **Automatic Metadata Fetching**
+- **Micro Clips**
+- **Multilingual UI**
+- **Enhanced Yandex Music**
+- **Resource Saving Mode**
 
-## 📥 Installation
+## Installation
 
 ### Installation Options
 
@@ -49,22 +49,22 @@ Choose the method that works best for you:
 1. **Full Installation** - Download the `quark-installer` for a complete setup
 2. **Portable Version** - Get the `{system}-release.zip` for portable use
 
-### 📦 Downloads
+### Downloads
 
 All files are available in the [**Releases**](https://github.com/z3nsh0w/QUARK/releases) section
 
-> **Note:** macOS version coming soon (waiting for our dev to grace us with their attention 😉)
+> **Note:** macOS version coming soon (waiting for our dev to grace us with their attention)
 
-### 🖥️ System Requirements
+### 🖥 System Requirements
 
 | Platform | Requirements |
 |----------|-------------|
-| **Windows** | Windows 10 1809+, Visual C++ Runtime |
+| **Windows** | Microsoft Visual C++ Runtime |
 | **macOS** | macOS 10.15+ |
 | **Linux** | Modern distribution, File Chooser Dialog dependency |
 | **Internet** | Stable connection (for Yandex Music features) |
 
-### ⚠️ Important Notes
+### ⚠ Important Notes
 
  > [!WARNING]
  > To use player on Windows older than 1809 you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe). 
@@ -72,11 +72,11 @@ All files are available in the [**Releases**](https://github.com/z3nsh0w/QUARK/r
 **For Linux Users:**
 - Requires `libwebkit2gtk` or `qtwebengine` (usually pre-installed on popular distributions)
 
-### 🛠️ Installer
+### 🛠 Installer
 
 The installer source code is available in our [separate repository](https://github.com/z3nsh0w/quark-installer/)
 
-## 📸 Screenshots
+## Screenshots
 
 <p align="center">
   <img src="appphoto.png" alt="QUARK Interface" width="45%">
