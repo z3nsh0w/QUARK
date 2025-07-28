@@ -3,68 +3,60 @@
 </p>  
 
 <h1 align="center" >  
-  QUARK - lightweight, easy to use and beautiful? audio player for desktop platforms   
+  QUARK - lightweight, easy to use and beautiful audio player   
 </h1>  
 
---- 
+---
+<div align="center">
+  <a href="https://quarkaudio.github.io/">
+    <h2>The main information in a more beautiful design can be viewed on our website</h2>
+  </a>
+</div>
+---
+<h1 align="center">Features</h1>  
+<h5 align="left"> ✔ Support for all audio file formats</h5>
+<h5 align="left"> ✔ Yandex music integration</h5>
+<h5 align="left"> ✔ Cross-platform desktop app</h5>
+<h5 align="left"> ✔ Has beautiful design</h5>
 
-## Features:  
- + Support for all audio file formats (including FLAC recorded in mp3))
- + Full desktop support across multiple platforms
- + Some will be released tomorrow.
-
-## Yandex music feature
- #### Features:
- + Ability to listen to and save your playlists from Yandex Music (immediately with track tags).  
- + Automatic login to your account and getting a token to work with Yandex Music  
+---  
  
- #### The following functionality will be added in the near future:  
- + changing user playlists  
- + searching for tracks across all Yandex Music  
- + mixing Yandex Music and local tracks.  
- + loading local tracks into Yandex Music  
- + ability to select track loading quality.  
- + display of short video clips just like in Yandex Music Mobile
+## Coming Soon:  <br>or what will be implemented in Release 1.2:  
 
- #### There are currently several limitations:  
- - NO LINUX SUPPORT... I'M CRYING...  
- - No online support for real-time work (work without saving local playlists). Playlists are completely cached on your device. If desired, they can be exported from the %temp%/quark folder.  
- - Only listening to user playlists is available.  
- - Works only with a Yandex Plus subscription  
-
-## Coming Soon:  
- + release 1 
- + performance improvements  
- + OS native media control  
- + drag-and-drop support 
- + yandex music integration  
- + automatic loading of metadata for tracks 
+ + #### **Optimized performance**  
+ + #### **OS-native media controls (for Linux and Macos)**  
+ + #### **Drag-and-drop functionality**  
+ + #### **Automatic metadata fetching**
+ + #### **Micro clips**  
+ + #### **Multilingual UI**
+ + #### **Enhanced Yandex Music**  
+ + #### **Resource saving mode**
 
 ---
 
-## Installation
- > [!WARNING]
- > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
-   
- + For full installation on Windows/Linux you can download quarkInstaller.exe (quarkInstaller.appImage).
- + For portable use download system-release.zip  
-  
- + You can find all the necessary files on the [releases tab](https://github.com/z3nsh0w/QUARK/releases)  
-
- 
- The solution for MacOS will be tomorrow  
+<h1 align="center">Installation</h1>  
 
 ---
+<h2 align="left">There is two ways to use our app:</h2>
+ + #### For a complete installation you can download the installer (quark installer)** 
 
-## System requirements  
+ + #### For portable use download {{system}}-release.zip  
+
+### Everything you need is in the [releases tab](https://github.com/z3nsh0w/QUARK/releases) (if you haven't noticed)
+
+Mac version arriving once our dev decides to grace us with their attention 
+
+### System requirements  
  + Windows 10 1809 or older, Macos 10.15 or older, Linux uncertainty
  + Visual C++ Runtime on Windows  
  + File Chooser Dialog dependency on Linux
  + Stable internet (for using Yandex.Music)
 
----
+ > [!WARNING]
+ > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
 
-### Quark Installer
+<h2 align="left">Quark Installer</h2>
+
  > [!WARNING]  
  > If you have an operating system older than Windows 10 1809, you will need to install Webview2 Runtime.
  > 
@@ -72,6 +64,7 @@
 
   You can find the source code of the installer in the [nearby repository](https://github.com/z3nsh0w/quark-installer/)
 
+---
 
 ## Who's here?
 **Made by Penises Development Group (Penises DG) = Made by z3nsh0w & aror**
