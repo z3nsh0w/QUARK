@@ -91,5 +91,5 @@ The installer source code is available in our [separate repository](https://gith
 
 ## License
 
-This project is licensed under [specify license]. See the `LICENSE` file for details.
+This project is licensed under GPL-3.0 license. See the `LICENSE` file for details.
 ---
