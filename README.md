@@ -16,7 +16,7 @@
 
 ---
 
-<h1 align="center">Features</h1>  
+# Features
 
 ### ✔ Support for all audio file formats  
 ### ✔ Yandex music integration  
