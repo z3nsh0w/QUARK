@@ -1,79 +1,100 @@
-<p align="center">  
-  <img width="512" height="512" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png">  
-</p>  
+# 🎵 QUARK
 
-<h1 align="center" >  
-  QUARK - lightweight, easy to use and beautiful audio player   
-</h1>  
+<p align="center">
+  <img width="256" height="256" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png" alt="QUARK Logo">
+</p>
 
----
+<p align="center">
+  <strong>Lightweight, easy to use and beautiful audio player</strong>
+</p>
+
+<p align="center">
+  <a href="https://quarkaudio.github.io/">🌐 Visit our website</a>
+</p>
 
 <div align="center">
-  <a href="https://quarkaudio.github.io/">
-    The main information in a more beautiful design can be viewed on our website
-  </a>
-</div>  
+
+![Release](https://img.shields.io/github/v/release/z3nsh0w/QUARK?style=flat-square)
+![Downloads](https://img.shields.io/github/downloads/z3nsh0w/QUARK/total?style=flat-square)
+![License](https://img.shields.io/github/license/z3nsh0w/QUARK?style=flat-square)
+
+</div>
 
 ---
 
-# Features
+## ✨ Features
 
-### ✔ Support for all audio file formats  
-### ✔ Yandex music integration  
-### ✔ Cross-platform desktop app  
-### ✔ Has beautiful design  
+- **🎧 Universal Audio Support**
+- **🎶 Yandex Music Integration**
+- **💻 Cross-Platform**
+- **🎨 Beautiful Design**
 
----  
- 
-## Coming Soon:  <br>or what will be implemented in Release 1.2:  
+## 🚀 Coming Soon in Release 1.2
 
- + #### **Optimized performance**  
- + #### **OS-native media controls (for Linux and Macos)**  
- + #### **Drag-and-drop functionality**  
- + #### **Automatic metadata fetching**
- + #### **Micro clips**  
- + #### **Multilingual UI**
- + #### **Enhanced Yandex Music**  
- + #### **Resource saving mode**
+- **⚡ Optimized Performance**
+- **🎛️ OS-Native Media Controls**
+- **📂 Drag & Drop Functionality**
+- **📋 Automatic Metadata Fetching**
+- **🎬 Micro Clips**
+- **🌍 Multilingual UI**
+- **🔧 Enhanced Yandex Music**
+- **💾 Resource Saving Mode**
 
+## 📥 Installation
+
+### Installation Options
+
+Choose the method that works best for you:
+
+1. **Full Installation** - Download the `quark-installer` for a complete setup
+2. **Portable Version** - Get the `{system}-release.zip` for portable use
+
+### 📦 Downloads
+
+All files are available in the [**Releases**](https://github.com/z3nsh0w/QUARK/releases) section
+
+> **Note:** macOS version coming soon (waiting for our dev to grace us with their attention 😉)
+
+### 🖥️ System Requirements
+
+| Platform | Requirements |
+|----------|-------------|
+| **Windows** | Windows 10 1809+, Visual C++ Runtime |
+| **macOS** | macOS 10.15+ |
+| **Linux** | Modern distribution, File Chooser Dialog dependency |
+| **Internet** | Stable connection (for Yandex Music features) |
+
+### ⚠️ Important Notes
+
+**For Windows Users:**
+- [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) installation required
+- Windows versions older than 10 1809 need Webview2 Runtime
+
+**For Linux Users:**
+- Requires `libwebkit2gtk` or `qtwebengine` (usually pre-installed on popular distributions)
+
+### 🛠️ Installer
+
+The installer source code is available in our [separate repository](https://github.com/z3nsh0w/quark-installer/)
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="appphoto.png" alt="QUARK Interface" width="45%">
+  <img src="appphoto1.png" alt="QUARK Player" width="45%">
+</p>
+
+## 👥 Development Team
+
+**Made by Penises Development Group (Penises DG)**
+- [@z3nsh0w](https://github.com/z3nsh0w)
+- [@aror](https://github.com/aror)
+
+## 📄 License
+
+This project is licensed under [specify license]. See the `LICENSE` file for details.
 ---
 
-<h1 align="center">Installation</h1>  
-
----
-<h2 align="left">There is two ways to use our app:</h2>  
-
- + #### For a complete installation you can download the installer (quark installer) 
- + #### For portable use download {{system}}-release.zip  
-
-### Everything you need is in the [releases tab](https://github.com/z3nsh0w/QUARK/releases) (if you haven't noticed)
-
-Mac version arriving once our dev decides to grace us with their attention 
-
-### System requirements  
- + Windows 10 1809 or older, Macos 10.15 or older, Linux uncertainty
- + Visual C++ Runtime on Windows  
- + File Chooser Dialog dependency on Linux
- + Stable internet (for using Yandex.Music)
-
- > [!WARNING]
- > To use player on Windows you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe).  
-
-<h2 align="left">Quark Installer</h2>
-
- > [!WARNING]  
- > If you have an operating system older than Windows 10 1809, you will need to install Webview2 Runtime.
- > 
- > On Linux systems, you need to have libwebkit2gtk or qtwebengine (usually they are pre-installed in popular distributions).  
-
-  You can find the source code of the installer in the [nearby repository](https://github.com/z3nsh0w/quark-installer/)
-
----
-
-## Who's here?
-**Made by Penises Development Group (Penises DG) = Made by z3nsh0w & aror**
-  
-![Musician Screenshot](appphoto.png)
-![Musician Screenshot](appphoto1.png)
-
----
+<p align="center">
+  ⭐ Star our project if you find it useful!
+</p>
