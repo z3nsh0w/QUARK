@@ -24,7 +24,7 @@
 
 ## ✨ Features
 
-- **🎧 Universal Audio Support**
+- **🎧 Universal Audio Formats Support**
 - **🎶 Yandex Music Integration**
 - **💻 Cross-Platform**
 - **🎨 Beautiful Design**
@@ -66,9 +66,8 @@ All files are available in the [**Releases**](https://github.com/z3nsh0w/QUARK/r
 
 ### ⚠️ Important Notes
 
-**For Windows Users:**
-- [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) installation required
-- Windows versions older than 10 1809 need Webview2 Runtime
+ > [!WARNING]
+ > To use player on Windows older than 1809 you need to install [Microsoft Visual C++ Runtime](https://aka.ms/vs/17/release/vc_redist.x64.exe) (vcredist.exe). 
 
 **For Linux Users:**
 - Requires `libwebkit2gtk` or `qtwebengine` (usually pre-installed on popular distributions)
@@ -88,7 +87,7 @@ The installer source code is available in our [separate repository](https://gith
 
 **Made by Penises Development Group (Penises DG)**
 - [@z3nsh0w](https://github.com/z3nsh0w)
-- [@aror](https://github.com/aror)
+- [@aror](https://github.com/Aror1)
 
 ## 📄 License
 
