@@ -15,11 +15,12 @@
 </div>  
 
 ---
+
 <h1 align="center">Features</h1>  
-### ✔ Support for all audio file formats
-### ✔ Yandex music integration
-### ✔ Cross-platform desktop app
-### ✔ Has beautiful design
+### ✔ Support for all audio file formats  
+### ✔ Yandex music integration  
+### ✔ Cross-platform desktop app  
+### ✔ Has beautiful design  
 
 ---  
  
