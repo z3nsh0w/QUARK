@@ -1,4 +1,4 @@
-# QUARK
+<h1 align="center">QUARK</h1>  
 
 <p align="center">
   <img width="322" height="322" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png" alt="QUARK Logo">
