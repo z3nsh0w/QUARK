@@ -9,7 +9,7 @@
 </h1>
 
 <p align="center">
-  <a href="https://quarkaudio.github.io/">🌐 Visit our website</a>
+  <a href="https://quarkaudio.github.io/">For a more beautiful description, see the website</a>
 </p>
 
 <div align="center">
