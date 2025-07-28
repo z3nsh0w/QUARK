@@ -43,7 +43,7 @@
 ---
 <h2 align="left">There is two ways to use our app:</h2>  
 
- + #### For a complete installation you can download the installer (quark installer)** 
+ + #### For a complete installation you can download the installer (quark installer) 
  + #### For portable use download {{system}}-release.zip  
 
 ### Everything you need is in the [releases tab](https://github.com/z3nsh0w/QUARK/releases) (if you haven't noticed)
