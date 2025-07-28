@@ -1,7 +1,7 @@
 # QUARK
 
 <p align="center">
-  <img width="256" height="256" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png" alt="QUARK Logo">
+  <img width="322" height="322" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png" alt="QUARK Logo">
 </p>
 
 <h1 align="center">
