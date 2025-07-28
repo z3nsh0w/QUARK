@@ -10,16 +10,25 @@
 
 ## Features:  
  + Support for all audio file formats (including FLAC recorded in mp3))
+ + Yandex music integration  
  + Full desktop support across multiple platforms
  + Some will be released tomorrow.
 
+---
+
+[https://quarkaudio.github.io/]
+
+---
+
 ## Coming Soon:  
- + Release 1 
+ + Release 1.2 
  + Performance improvements  
- + OS native media control  
- + Drag-and-drop support 
- + Yandex music integration 
- + Automatic loading of metadata for tracks 
+ + OS native media control across multiple platforms  
+ + Drag-and-drop support  
+ + Automatic loading of metadata for tracks
+ + Micro clips  
+ + Multilanguage
+ + Yandex music update  
 
 ---
 
