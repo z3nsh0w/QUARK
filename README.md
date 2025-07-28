@@ -16,10 +16,10 @@
 
 ---
 <h1 align="center">Features</h1>  
-<h5 align="left"> ✔ Support for all audio file formats</h5>
-<h5 align="left"> ✔ Yandex music integration</h5>
-<h5 align="left"> ✔ Cross-platform desktop app</h5>
-<h5 align="left"> ✔ Has beautiful design</h5>
+### ✔ Support for all audio file formats
+### ✔ Yandex music integration
+### ✔ Cross-platform desktop app
+### ✔ Has beautiful design
 
 ---  
  
