@@ -16,8 +16,9 @@
 
 ---
 
-[]
-<a align="center" href="https://quarkaudio.github.io/">Quark site</a>
+<a align="center" href="https://quarkaudio.github.io/" >
+Quark site
+</a>
 
 ---
 
