@@ -83,17 +83,13 @@ The installer source code is available in our [separate repository](https://gith
   <img src="appphoto1.png" alt="QUARK Player" width="45%">
 </p>
 
-## 👥 Development Team
+## Development Team
 
 **Made by Penises Development Group (Penises DG)**
 - [@z3nsh0w](https://github.com/z3nsh0w)
 - [@aror](https://github.com/Aror1)
 
-## 📄 License
+## License
 
 This project is licensed under [specify license]. See the `LICENSE` file for details.
 ---
-
-<p align="center">
-  ⭐ Star our project if you find it useful!
-</p>
