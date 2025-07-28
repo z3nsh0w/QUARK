@@ -1,12 +1,12 @@
-# 🎵 QUARK
+# QUARK
 
 <p align="center">
   <img width="256" height="256" src="https://raw.githubusercontent.com/z3nsh0w/QUARK/refs/heads/main/assets/icon512.png" alt="QUARK Logo">
 </p>
 
-<p align="center">
+<h1 align="center">
   <strong>Lightweight, easy to use and beautiful audio player</strong>
-</p>
+</h1>
 
 <p align="center">
   <a href="https://quarkaudio.github.io/">🌐 Visit our website</a>
