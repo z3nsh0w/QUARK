@@ -10,7 +10,7 @@
 
 <div align="center">
   <a href="https://quarkaudio.github.io/">
-    <h2>The main information in a more beautiful design can be viewed on our website</h2>
+    The main information in a more beautiful design can be viewed on our website
   </a>
 </div>  
 
