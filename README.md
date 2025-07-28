@@ -7,11 +7,13 @@
 </h1>  
 
 ---
+
 <div align="center">
   <a href="https://quarkaudio.github.io/">
     <h2>The main information in a more beautiful design can be viewed on our website</h2>
   </a>
-</div>
+</div>  
+
 ---
 <h1 align="center">Features</h1>  
 <h5 align="left"> ✔ Support for all audio file formats</h5>
