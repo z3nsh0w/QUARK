@@ -40,6 +40,7 @@ class Database {
       case bool:
       case const (List<String>):
       case const (List<Map<String, dynamic>>):
+      case const (List<Map<dynamic, dynamic>>):
         try {
           await box.put(key, value);
           return true;

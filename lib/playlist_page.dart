@@ -1,18 +1,22 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'dart:ui';
 import 'package:audioplayers/audioplayers.dart';
 import 'dart:typed_data';
 import 'dart:io';
 import 'package:interactive_slider/interactive_slider.dart';
-import 'package:audiotags/audiotags.dart';
+import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:http/http.dart' as http;
+// import 'package:smtc_windows/smtc_windows.dart';
 import 'package:quark/database.dart';
 import 'package:dio/dio.dart';
 import 'package:path/path.dart' as path;
 import 'package:file_picker/file_picker.dart';
 import 'package:logging/logging.dart';
 import 'package:path_provider/path_provider.dart';
+
+// some classes
 
 class PathManager {
   static String getFileName(String filePath) {
@@ -35,9 +39,10 @@ class PathManager {
 class FileTags {
   static Future<Map<String, dynamic>> getTagsFromFile(String filePath) async {
     try {
-      Tag? tagsFromFile = await AudioTags.read(
-        PathManager.getnormalizePath(filePath),
-      );
+      final track = File(filePath);
+
+      final tagsFromFile = readMetadata(track, getImage: true);
+
       if (tagsFromFile == null) {
         return {
           'trackName': PathManager.getFileName(filePath),
@@ -50,19 +55,19 @@ class FileTags {
         'trackName':
             tagsFromFile?.title?.trim() ?? PathManager.getFileName(filePath),
         'trackArtistNames':
-            tagsFromFile?.trackArtist?.trim().isNotEmpty == true
-                ? tagsFromFile!.trackArtist!
+            tagsFromFile?.artist?.trim().isNotEmpty == true
+                ? tagsFromFile!.artist!
                     .split(',')
                     .map((e) => e.trim())
                     .where((e) => e.isNotEmpty)
                     .toList()
                 : ['Unknown'],
         'albumName': tagsFromFile.album?.trim() ?? 'Unknown',
-        'albumArtistName': tagsFromFile.albumArtist?.trim() ?? 'Unknown',
+        'albumArtistName': tagsFromFile.album?.trim() ?? 'Unknown',
         'trackNumber': tagsFromFile.trackNumber ?? 0,
         'albumLength': tagsFromFile.trackTotal ?? 0,
         'year': tagsFromFile.year ?? 0,
-        'genre': tagsFromFile.genre?.trim() ?? 'Unknown',
+        'genre': tagsFromFile.genres ?? 'Unknown',
         'discNumber': tagsFromFile.discNumber,
         'authorName': 'metadata.authorName',
         'writerName': 'metadata.writerName',
@@ -73,6 +78,7 @@ class FileTags {
             tagsFromFile.pictures.isNotEmpty
                 ? tagsFromFile.pictures.first.bytes ?? Uint8List(0)
                 : Uint8List(0),
+        'albumArtPNG': tagsFromFile.pictures.first.pictureType,
       };
     } catch (e) {
       return {
@@ -181,9 +187,13 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage>
     with TickerProviderStateMixin {
-
   void _showPlaylistOverlay() {
-    if (isPlaylistAnimating) {return;}
+    if (isPlaylistAnimating) {
+      setState(() {
+        playerPadding = 0.0;
+      });
+      return;
+    }
     if (isPlaylistOpened) {
       playlistAnimationController.reverse().then((_) {
         playlistOverlayEntry?.remove();
@@ -192,6 +202,7 @@ class _PlaylistPageState extends State<PlaylistPage>
       if (mounted) {
         setState(() {
           isPlaylistOpened = false;
+          playerPadding = 0.0;
         });
       }
       return;
@@ -201,6 +212,9 @@ class _PlaylistPageState extends State<PlaylistPage>
       if (mounted) {
         setState(() {
           isPlaylistOpened = true;
+          if (MediaQuery.of(context).size.width > 800) {
+            playerPadding = 400.0;
+          }
         });
       }
 
@@ -214,8 +228,11 @@ class _PlaylistPageState extends State<PlaylistPage>
                   color: Colors.transparent,
                   child: GestureDetector(
                     onHorizontalDragEnd: (details) {
-                      if (details.primaryVelocity! > 100) {
-                        _hidePlaylistOverlay();
+                      if (details.primaryVelocity!.abs() > 500) {
+                        if (details.primaryVelocity! < -500 ||
+                            details.primaryVelocity! > 500) {
+                          _hidePlaylistOverlay();
+                        }
                       }
                     },
 
@@ -327,13 +344,31 @@ class _PlaylistPageState extends State<PlaylistPage>
                                                 ),
                                               ),
 
-                                              Icon(
-                                                Icons.play_arrow_sharp,
-                                                color:
-                                                    (songs[nowPlayingIndex] ==
-                                                            nowTrack)
-                                                        ? Colors.grey
-                                                        : Colors.transparent,
+                                              ValueListenableBuilder<int>(
+                                                valueListenable:
+                                                    nowPlayingIndexNotifier,
+                                                builder: (
+                                                  context,
+                                                  currentIndex,
+                                                  child,
+                                                ) {
+                                                  return AnimatedOpacity(
+                                                    opacity:
+                                                        (currentIndex == index)
+                                                            ? 1.0
+                                                            : 0.0,
+                                                    duration: Duration(
+                                                      milliseconds:
+                                                          (650 * transitionSpeed)
+                                                              .round(),
+                                                    ),
+                                                    curve: Curves.easeInOut,
+                                                    child: Icon(
+                                                      Icons.play_arrow_sharp,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  );
+                                                },
                                               ),
                                             ],
                                           ),
@@ -346,8 +381,14 @@ class _PlaylistPageState extends State<PlaylistPage>
                                                 if (nowPlayingIndex != index &&
                                                     index > 0) {
                                                   nowPlayingIndex = index - 1;
+                                                  nowPlayingIndexNotifier
+                                                      .value = index - 1;
+
                                                   steps(nextStep: true);
                                                 } else if (index == 0) {
+                                                  nowPlayingIndexNotifier
+                                                      .value = index;
+
                                                   nowPlayingIndex = index;
                                                   steps(replayStep: true);
                                                 }
@@ -405,6 +446,9 @@ class _PlaylistPageState extends State<PlaylistPage>
       playlistOverlayEntry?.remove();
       playlistOverlayEntry = null;
     });
+    setState(() {
+      playerPadding = 0.0;
+    });
     if (isPlaylistOpened) {
       if (mounted) {
         setState(() {
@@ -427,8 +471,11 @@ class _PlaylistPageState extends State<PlaylistPage>
                 color: Colors.transparent,
                 child: GestureDetector(
                   onHorizontalDragEnd: (details) {
-                    if (details.primaryVelocity! > 100) {
-                      _hideWarningMetadataOverlay();
+                    if (details.primaryVelocity!.abs() > 500) {
+                      if (details.primaryVelocity! < -500 ||
+                          details.primaryVelocity! > 500) {
+                        _hideWarningMetadataOverlay();
+                      }
                     }
                   },
 
@@ -588,8 +635,14 @@ class _PlaylistPageState extends State<PlaylistPage>
                                 sigmaY: 175,
                               ),
                               child: Container(
-                                width: 600,
-                                height: 815 - 100,
+                                width: min(
+                                  MediaQuery.of(context).size.width * 0.92,
+                                  600,
+                                ),
+                                height: min(
+                                  MediaQuery.of(context).size.height * 0.92,
+                                  715,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white.withOpacity(0.2),
                                   border: Border.all(
@@ -608,764 +661,944 @@ class _PlaylistPageState extends State<PlaylistPage>
                                     ],
                                   ),
                                 ),
-                                child: Column(
+                                child: Stack(
                                   children: [
-                                    SizedBox(height: 15),
-
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Container(
-                                          height: 45,
-                                          width: 150,
-
-                                          decoration: BoxDecoration(
-                                            borderRadius: BorderRadius.all(
-                                              Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: Row(
+                                    Positioned(
+                                      top: 675,
+                                      left: 290,
+                                      child: Text(
+                                        "made by Penises DG. No rights reserved.",
+                                        style: TextStyle(
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                    ),
+                                    SingleChildScrollView(
+                                      scrollDirection: Axis.vertical,
+                                      child: Column(
+                                        children: [
+                                          SizedBox(height: 15),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.center,
                                             children: [
-                                              SizedBox(width: 35),
-                                              Icon(
-                                                Icons.interests,
-                                                color: Colors.grey[300],
+                                              Container(
+                                                height: 45,
+                                                width: 150,
+
+                                                decoration: BoxDecoration(
+                                                  borderRadius:
+                                                      BorderRadius.all(
+                                                        Radius.circular(10),
+                                                      ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    SizedBox(width: 35),
+                                                    Icon(
+                                                      Icons.interests,
+                                                      color: Colors.grey[300],
+                                                    ),
+                                                    SizedBox(width: 10),
+                                                    Text(
+                                                      'Main',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[300],
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.w100,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              SizedBox(width: 10),
-                                              Text(
-                                                'Main',
-                                                style: TextStyle(
-                                                  color: Colors.grey[300],
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w100,
+                                              SizedBox(width: 50),
+                                              Container(
+                                                height: 45,
+                                                width: 150,
+                                                decoration: BoxDecoration(
+                                                  // color: themeColor,
+                                                  borderRadius:
+                                                      BorderRadius.all(
+                                                        Radius.circular(10),
+                                                      ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    SizedBox(width: 35),
+                                                    Icon(
+                                                      Icons.cloud_sync_sharp,
+                                                      color: Colors.grey[300],
+                                                    ),
+                                                    SizedBox(width: 10),
+                                                    Text(
+                                                      'Server',
+                                                      style: TextStyle(
+                                                        color: Colors.grey[300],
+                                                        fontSize: 18,
+                                                        fontWeight:
+                                                            FontWeight.w100,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              IconButton(
+                                                onPressed: _hideSettingsOverlay,
+                                                icon: Icon(
+                                                  Icons.close,
+                                                  color: Colors.white,
                                                 ),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                        SizedBox(width: 50),
-                                        Container(
-                                          height: 45,
-                                          width: 150,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            borderRadius: BorderRadius.all(
-                                              Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: Row(
+                                          SizedBox(height: 25),
+                                          Row(
                                             children: [
-                                              SizedBox(width: 35),
-                                              Icon(
-                                                Icons.cloud_sync_sharp,
-                                                color: Colors.grey[300],
-                                              ),
-                                              SizedBox(width: 10),
+                                              SizedBox(width: 50),
                                               Text(
-                                                'Server',
-                                                style: TextStyle(
-                                                  color: Colors.grey[300],
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w100,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 25),
-                                    Row(
-                                      children: [
-                                        SizedBox(width: 50),
-                                        Text(
-                                          'Playlist',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 5),
-                                    Column(
-                                      children: [
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(10),
-                                              topRight: Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: InkWell(
-                                            onTap: () {},
-                                            child: Row(
-                                              children: [
-                                                SizedBox(width: 15),
-                                                Text(
-                                                  'Add songs',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(height: 5),
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          child: InkWell(
-                                            onTap: () {
-                                              addFolderToSongs();
-                                              // var oldlist = widget.songs;
-
-                                              // setState(() {
-                                              //   widget.songs = oldlist
-                                              // });
-
-                                              Database.setValue(
-                                                'lastPlaylist',
-                                                songs,
-                                              ); // After initializing the playlist, we add it to the table as the last one
-                                            },
-                                            child: Row(
-                                              children: [
-                                                SizedBox(width: 15),
-                                                Text(
-                                                  'Add Folder',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                        SizedBox(height: 5),
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-
-                                            borderRadius: BorderRadius.only(
-                                              bottomLeft: Radius.circular(10),
-                                              bottomRight: Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: InkWell(
-                                            onTap: () {
-                                              // player.stop();
-                                              // _hidePlaylistOverlay();
-                                              // _hideWarningMetadataOverlay();
-                                              // _hideSettingsOverlay();
-
-                                              Navigator.pop(context);
-                                            },
-                                            child: Row(
-                                              children: [
-                                                SizedBox(width: 15),
-                                                Text(
-                                                  'Clear',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    SizedBox(height: 25),
-                                    Row(
-                                      children: [
-                                        SizedBox(width: 50),
-                                        Text(
-                                          'UI',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 5),
-                                    Column(
-                                      children: [
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(10),
-                                              topRight: Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              SizedBox(width: 15),
-                                              Text(
-                                                'White theme (beta ;d)',
+                                                'Playlist',
                                                 style: TextStyle(
                                                   color: Colors.white,
-                                                  fontSize: 16,
+                                                  fontSize: 18,
                                                 ),
                                               ),
-                                              // SizedBox(width: 305),
-                                              SizedBox(width: 237),
-                                              Switch(
-                                                value: isWhiteTheme,
-                                                onChanged: (bool value) {
-                                                  if (mounted) {
-                                                    setState(() {
-                                                      isWhiteTheme = value;
-                                                    });
-                                                    setOverlayState(() {
-                                                      isWhiteTheme = value;
-                                                    });
+                                            ],
+                                          ),
+                                          SizedBox(height: 5),
+                                          Column(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
 
-                                                    if (isWhiteTheme &&
-                                                        mounted) {
-                                                      setState(() {
-                                                        themeColor =
-                                                            Color.fromARGB(
-                                                              255,
-                                                              197,
-                                                              197,
-                                                              197,
-                                                            );
-                                                        backgroundGradientColor =
-                                                            Color.fromRGBO(
-                                                              68,
-                                                              67,
-                                                              67,
-                                                              1,
-                                                            );
-                                                        backgroundSecondGradientColor =
-                                                            Color.fromRGBO(
-                                                              201,
-                                                              201,
-                                                              201,
-                                                              1,
-                                                            );
-                                                        albumArtShadowColor =
-                                                            Color.fromARGB(
-                                                              255,
-                                                              66,
-                                                              66,
-                                                              66,
-                                                            );
-                                                        alternativeThemeColor =
-                                                            Color.fromARGB(
-                                                              255,
-                                                              34,
-                                                              34,
-                                                              34,
-                                                            );
-                                                        Database.setValue(
-                                                          "isWhiteTheme",
-                                                          true,
-                                                        );
-                                                      });
-                                                    }
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          topLeft:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                          topRight:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  child: InkWell(
+                                                    onTap: () {},
+                                                    child: Row(
+                                                      children: [
+                                                        SizedBox(width: 15),
+                                                        Text(
+                                                          'Add songs',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(height: 5),
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                  child: InkWell(
+                                                    onTap: () {
+                                                      addFolderToSongs();
+                                                      // var oldlist = widget.songs;
 
-                                                    if (!isWhiteTheme &&
-                                                        mounted) {
-                                                      themeColor =
-                                                          Color.fromARGB(
-                                                            255,
-                                                            34,
-                                                            34,
-                                                            34,
-                                                          );
-                                                      backgroundGradientColor =
-                                                          Color.fromRGBO(
-                                                            24,
-                                                            24,
-                                                            26,
-                                                            1,
-                                                          );
-                                                      backgroundSecondGradientColor =
-                                                          Color.fromRGBO(
-                                                            18,
-                                                            18,
-                                                            20,
-                                                            1,
-                                                          );
-                                                      albumArtShadowColor =
-                                                          Color.fromARGB(
-                                                            255,
-                                                            21,
-                                                            21,
-                                                            21,
-                                                          );
-                                                      alternativeThemeColor =
-                                                          Color.fromARGB(
-                                                            255,
-                                                            197,
-                                                            197,
-                                                            197,
-                                                          );
+                                                      // setState(() {
+                                                      //   widget.songs = oldlist
+                                                      // });
+
                                                       Database.setValue(
-                                                        "isWhiteTheme",
-                                                        false,
-                                                      );
-                                                    }
-                                                  }
-
-                                                  // if (isWhiteTheme) {
-                                                  // setState(() {
-                                                  //   themeColor = const Color.fromARGB(255, 220, 220, 220);
-                                                  // });
-                                                  // setOverlayState(() {
-                                                  //   themeColor = const Color.fromARGB(255, 220, 220, 220);
-                                                  // });
-                                                  // }
-                                                },
-                                                activeColor:
-                                                    const Color.fromARGB(
-                                                      255,
-                                                      34,
-                                                      34,
-                                                      34,
+                                                        'lastPlaylist',
+                                                        songs,
+                                                      ); // After initializing the playlist, we add it to the table as the last one
+                                                    },
+                                                    child: Row(
+                                                      children: [
+                                                        SizedBox(width: 15),
+                                                        Text(
+                                                          'Add Folder',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ],
                                                     ),
-                                                activeTrackColor:
-                                                    Colors.grey[300],
-                                                inactiveThumbColor:
-                                                    Colors.grey[300],
-                                                inactiveTrackColor:
-                                                    const Color.fromARGB(
-                                                      255,
-                                                      34,
-                                                      34,
-                                                      34,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        SizedBox(height: 5),
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              SizedBox(width: 15),
-                                              Text(
-                                                'Album art as background',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              SizedBox(width: 215),
-                                              Switch(
-                                                value: isBackgroudArtEnable,
-                                                onChanged: (bool value) {
-                                                  if (mounted) {
-                                                    setState(() {
-                                                      isBackgroudArtEnable =
-                                                          value;
-                                                    });
-                                                    setOverlayState(() {
-                                                      isBackgroudArtEnable =
-                                                          value;
-                                                    });
-                                                  }
-
-                                                  if (!value) {
-                                                    coverArtData = Uint8List(0);
-                                                    Database.setValue(
-                                                      "isBackgroudArtEnable",
-                                                      false,
-                                                    );
-                                                  } else {
-                                                    FileTags.getTagsFromFile(
-                                                      songs[nowPlayingIndex],
-                                                    ).then((value) {
-                                                      if (mounted) {
-                                                        setState(() {
-                                                          coverArtData =
-                                                              value['albumArt'];
-                                                        });
-                                                      }
-                                                    });
-                                                    Database.setValue(
-                                                      "isBackgroudArtEnable",
-                                                      true,
-                                                    );
-                                                  }
-                                                },
-                                                activeColor:
-                                                    const Color.fromARGB(
-                                                      255,
-                                                      34,
-                                                      34,
-                                                      34,
-                                                    ),
-                                                activeTrackColor:
-                                                    Colors.grey[300],
-                                                inactiveThumbColor:
-                                                    Colors.grey[300],
-                                                inactiveTrackColor:
-                                                    const Color.fromARGB(
-                                                      255,
-                                                      34,
-                                                      34,
-                                                      34,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        // SizedBox(height: 5),
-                                        // Container(
-                                        //   width: 500,
-                                        //   height: 50,
-                                        //   decoration: BoxDecoration(
-                                        //     // color: themeColor,
-                                        //     border: Border.all(
-                                        //       width: 0.2,
-                                        //       color: Colors.grey,
-                                        //     ),
-                                        //   ),
-                                        //   child: Row(
-                                        //     children: [
-                                        //       SizedBox(width: 15),
-                                        //       Text(
-                                        //         'Custom accent color',
-                                        //         style: TextStyle(
-                                        //           color: Colors.white,
-                                        //           fontSize: 16,
-                                        //         ),
-                                        //       ),
-                                        //       SizedBox(width: 175),
-                                        //       // TextField(
-
-                                        //       // ),
-                                        //       Text(
-                                        //         'COLORPICKER...',
-                                        //         style: TextStyle(
-                                        //           color: Colors.white,
-                                        //         ),
-                                        //       ),
-                                        //     ],
-                                        //   ),
-                                        // ),
-                                        SizedBox(height: 5),
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-                                            borderRadius: BorderRadius.only(
-                                              bottomLeft: Radius.circular(10),
-                                              bottomRight: Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              SizedBox(width: 15),
-                                              Text(
-                                                'Transition speed',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              SizedBox(width: 165),
-                                              Slider(
-                                                min: 0.0,
-
-                                                max: 2.0,
-                                                // overlayColor: Color.fromARGB(1, 218, 218, 218),
-                                                activeColor: Color.fromARGB(
-                                                  255,
-                                                  218,
-                                                  218,
-                                                  218,
-                                                ),
-                                                inactiveColor: Color.fromARGB(
-                                                  255,
-                                                  218,
-                                                  218,
-                                                  218,
-                                                ),
-                                                value: transitionSpeed,
-                                                onChanged: (value) {
-                                                  if (mounted) {
-                                                    setOverlayState(() {
-                                                      transitionSpeed = value;
-                                                    });
-                                                    setState(() {
-                                                      transitionSpeed = value;
-                                                    });
-                                                  }
-                                                  Database.setValue(
-                                                    "transitionSpeed",
-                                                    value,
-                                                  );
-                                                },
-                                                thumbColor: Colors.white,
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-
-                                    SizedBox(height: 25),
-
-                                    Row(
-                                      children: [
-                                        SizedBox(width: 50),
-                                        Text(
-                                          'Functional',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    SizedBox(height: 15),
-                                    Column(
-                                      children: [
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-
-                                            borderRadius: BorderRadius.only(
-                                              topLeft: Radius.circular(10),
-                                              topRight: Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: [
-                                              SizedBox(width: 15),
-                                              Text(
-                                                'Automatic sorting of tracks',
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                              SizedBox(width: 200),
-                                              Switch(
-                                                value: autoTrackSorting,
-                                                onChanged: (bool value) {
-                                                  if (mounted) {
-                                                    setState(() {
-                                                      autoTrackSorting = value;
-                                                    });
-                                                    setOverlayState(() {
-                                                      autoTrackSorting = value;
-                                                    });
-                                                  }
-
-                                                  if (autoTrackSorting) {
-                                                    Database.setValue(
-                                                      'autoTrackSorting',
-                                                      true,
-                                                    );
-                                                  } else {
-                                                    Database.setValue(
-                                                      'autoTrackSorting',
-                                                      false,
-                                                    );
-                                                  }
-                                                },
-                                                activeColor:
-                                                    const Color.fromARGB(
-                                                      255,
-                                                      34,
-                                                      34,
-                                                      34,
-                                                    ),
-                                                activeTrackColor:
-                                                    Colors.grey[300],
-                                                inactiveThumbColor:
-                                                    Colors.grey[300],
-                                                inactiveTrackColor:
-                                                    const Color.fromARGB(
-                                                      255,
-                                                      34,
-                                                      34,
-                                                      34,
-                                                    ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        SizedBox(height: 5),
-                                        Container(
-                                          width: 500,
-                                          height: 50,
-                                          decoration: BoxDecoration(
-                                            // color: themeColor,
-                                            border: Border.all(
-                                              width: 0.2,
-                                              color: Colors.grey,
-                                            ),
-
-                                            borderRadius: BorderRadius.only(
-                                              bottomLeft: Radius.circular(10),
-                                              bottomRight: Radius.circular(10),
-                                            ),
-                                          ),
-                                          child: InkWell(
-                                            onTap: () {
-                                              // player.stop();
-                                              // _hidePlaylistOverlay();
-                                              // _hideWarningMetadataOverlay();
-                                              // _hideSettingsOverlay();
-                                              Database.clear();
-                                              Navigator.pop(context);
-                                            },
-                                            child: Row(
-                                              children: [
-                                                SizedBox(width: 15),
-                                                Text(
-                                                  'Reset settings to default',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 16,
                                                   ),
                                                 ),
-                                              ],
-                                            ),
+                                              ),
+                                              SizedBox(height: 5),
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
+
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          bottomLeft:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  child: InkWell(
+                                                    onTap: () {
+                                                      // player.stop();
+                                                      // _hidePlaylistOverlay();
+                                                      // _hideWarningMetadataOverlay();
+                                                      // _hideSettingsOverlay();
+
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Row(
+                                                      children: [
+                                                        SizedBox(width: 15),
+                                                        Text(
+                                                          'Clear',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                        // Container(
-                                        //   width: 500,
-                                        //   height: 50,
-                                        //   decoration: BoxDecoration(
-                                        //     // color: themeColor,
-                                        //     border: Border.all(
-                                        //       width: 0.2,
-                                        //       color: Colors.grey,
-                                        //     ),
 
-                                        //     borderRadius: BorderRadius.only(
-                                        //       topLeft: Radius.circular(10),
-                                        //       topRight: Radius.circular(10),
-                                        //       bottomLeft: Radius.circular(10),
-                                        //       bottomRight: Radius.circular(10),
-                                        //     ),
-                                        //   ),
-                                        //   child: Row(
-                                        //     children: [
-                                        //       SizedBox(width: 15),
-                                        //       Text(
-                                        //         'Metadata recognize',
-                                        //         style: TextStyle(
-                                        //           color: Colors.white,
-                                        //           fontSize: 16,
-                                        //         ),
-                                        //       ),
-                                        //       SizedBox(width: 255),
-                                        //       Switch(
-                                        //         value:
-                                        //             isMetadataRecognizeEnable,
-                                        //         onChanged: (bool value) {
-                                        //           if (mounted) {
-                                        //             setState(() {
-                                        //               isMetadataRecognizeEnable =
-                                        //                   value;
-                                        //             });
-                                        //             setOverlayState(() {
-                                        //               isMetadataRecognizeEnable =
-                                        //                   value;
-                                        //             });
-                                        //           }
+                                          SizedBox(height: 25),
+                                          Row(
+                                            children: [
+                                              SizedBox(width: 50),
+                                              Text(
+                                                'UI',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 5),
+                                          Column(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
 
-                                        //           if (isMetadataRecognizeEnable) {
-                                        //             Database.setValue(
-                                        //               'metadataRecognize',
-                                        //               true,
-                                        //             );
-                                        //           } else {
-                                        //             Database.setValue(
-                                        //               'metadataRecognize',
-                                        //               false,
-                                        //             );
-                                        //           }
-                                        //         },
-                                        //         activeColor:
-                                        //             const Color.fromARGB(
-                                        //               255,
-                                        //               34,
-                                        //               34,
-                                        //               34,
-                                        //             ),
-                                        //         activeTrackColor:
-                                        //             Colors.grey[300],
-                                        //         inactiveThumbColor:
-                                        //             Colors.grey[300],
-                                        //         inactiveTrackColor:
-                                        //             const Color.fromARGB(
-                                        //               255,
-                                        //               34,
-                                        //               34,
-                                        //               34,
-                                        //             ),
-                                        //       ),
-                                        //     ],
-                                        //   ),
-                                        // ),
-                                      ],
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          topLeft:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                          topRight:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      SizedBox(width: 15),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'White theme (beta ;d)',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsetsGeometry.only(
+                                                              right: 15,
+                                                            ),
+                                                        child: Switch(
+                                                          value: isWhiteTheme,
+                                                          onChanged: (
+                                                            bool value,
+                                                          ) {
+                                                            if (mounted) {
+                                                              setState(() {
+                                                                isWhiteTheme =
+                                                                    value;
+                                                              });
+                                                              setOverlayState(
+                                                                () {
+                                                                  isWhiteTheme =
+                                                                      value;
+                                                                },
+                                                              );
+
+                                                              if (isWhiteTheme &&
+                                                                  mounted) {
+                                                                setState(() {
+                                                                  themeColor =
+                                                                      Color.fromARGB(
+                                                                        255,
+                                                                        197,
+                                                                        197,
+                                                                        197,
+                                                                      );
+                                                                  backgroundGradientColor =
+                                                                      Color.fromRGBO(
+                                                                        68,
+                                                                        67,
+                                                                        67,
+                                                                        1,
+                                                                      );
+                                                                  backgroundSecondGradientColor =
+                                                                      Color.fromRGBO(
+                                                                        201,
+                                                                        201,
+                                                                        201,
+                                                                        1,
+                                                                      );
+                                                                  albumArtShadowColor =
+                                                                      Color.fromARGB(
+                                                                        255,
+                                                                        66,
+                                                                        66,
+                                                                        66,
+                                                                      );
+                                                                  alternativeThemeColor =
+                                                                      Color.fromARGB(
+                                                                        255,
+                                                                        34,
+                                                                        34,
+                                                                        34,
+                                                                      );
+                                                                  Database.setValue(
+                                                                    "isWhiteTheme",
+                                                                    true,
+                                                                  );
+                                                                });
+                                                              }
+
+                                                              if (!isWhiteTheme &&
+                                                                  mounted) {
+                                                                themeColor =
+                                                                    Color.fromARGB(
+                                                                      255,
+                                                                      34,
+                                                                      34,
+                                                                      34,
+                                                                    );
+                                                                backgroundGradientColor =
+                                                                    Color.fromRGBO(
+                                                                      24,
+                                                                      24,
+                                                                      26,
+                                                                      1,
+                                                                    );
+                                                                backgroundSecondGradientColor =
+                                                                    Color.fromRGBO(
+                                                                      18,
+                                                                      18,
+                                                                      20,
+                                                                      1,
+                                                                    );
+                                                                albumArtShadowColor =
+                                                                    Color.fromARGB(
+                                                                      255,
+                                                                      21,
+                                                                      21,
+                                                                      21,
+                                                                    );
+                                                                alternativeThemeColor =
+                                                                    Color.fromARGB(
+                                                                      255,
+                                                                      197,
+                                                                      197,
+                                                                      197,
+                                                                    );
+                                                                Database.setValue(
+                                                                  "isWhiteTheme",
+                                                                  false,
+                                                                );
+                                                              }
+                                                            }
+
+                                                            // if (isWhiteTheme) {
+                                                            // setState(() {
+                                                            //   themeColor = const Color.fromARGB(255, 220, 220, 220);
+                                                            // });
+                                                            // setOverlayState(() {
+                                                            //   themeColor = const Color.fromARGB(255, 220, 220, 220);
+                                                            // });
+                                                            // }
+                                                          },
+                                                          activeColor:
+                                                              const Color.fromARGB(
+                                                                255,
+                                                                34,
+                                                                34,
+                                                                34,
+                                                              ),
+                                                          activeTrackColor:
+                                                              Colors.grey[300],
+                                                          inactiveThumbColor:
+                                                              Colors.grey[300],
+                                                          inactiveTrackColor:
+                                                              const Color.fromARGB(
+                                                                255,
+                                                                34,
+                                                                34,
+                                                                34,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(height: 5),
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      SizedBox(width: 15),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Album art as background',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ),
+
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsetsGeometry.only(
+                                                              right: 15,
+                                                            ),
+
+                                                        child: Switch(
+                                                          value:
+                                                              isBackgroudArtEnable,
+                                                          onChanged: (
+                                                            bool value,
+                                                          ) {
+                                                            if (mounted) {
+                                                              setState(() {
+                                                                isBackgroudArtEnable =
+                                                                    value;
+                                                              });
+                                                              setOverlayState(() {
+                                                                isBackgroudArtEnable =
+                                                                    value;
+                                                              });
+                                                            }
+
+                                                            if (!value) {
+                                                              coverArtData =
+                                                                  Uint8List(0);
+                                                              Database.setValue(
+                                                                "isBackgroudArtEnable",
+                                                                false,
+                                                              );
+                                                            } else {
+                                                              FileTags.getTagsFromFile(
+                                                                songs[nowPlayingIndex],
+                                                              ).then((value) {
+                                                                if (mounted) {
+                                                                  setState(() {
+                                                                    coverArtData =
+                                                                        value['albumArt'];
+                                                                  });
+                                                                }
+                                                              });
+                                                              Database.setValue(
+                                                                "isBackgroudArtEnable",
+                                                                true,
+                                                              );
+                                                            }
+                                                          },
+                                                          activeColor:
+                                                              const Color.fromARGB(
+                                                                255,
+                                                                34,
+                                                                34,
+                                                                34,
+                                                              ),
+                                                          activeTrackColor:
+                                                              Colors.grey[300],
+                                                          inactiveThumbColor:
+                                                              Colors.grey[300],
+                                                          inactiveTrackColor:
+                                                              const Color.fromARGB(
+                                                                255,
+                                                                34,
+                                                                34,
+                                                                34,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              // SizedBox(height: 5),
+                                              // Container(
+                                              //   width: 500,
+                                              //   height: 50,
+                                              //   decoration: BoxDecoration(
+                                              //     // color: themeColor,
+                                              //     border: Border.all(
+                                              //       width: 0.2,
+                                              //       color: Colors.grey,
+                                              //     ),
+                                              //   ),
+                                              //   child: Row(
+                                              //     children: [
+                                              //       SizedBox(width: 15),
+                                              //       Text(
+                                              //         'Custom accent color',
+                                              //         style: TextStyle(
+                                              //           color: Colors.white,
+                                              //           fontSize: 16,
+                                              //         ),
+                                              //       ),
+                                              //       SizedBox(width: 175),
+                                              //       // TextField(
+
+                                              //       // ),
+                                              //       Text(
+                                              //         'COLORPICKER...',
+                                              //         style: TextStyle(
+                                              //           color: Colors.white,
+                                              //         ),
+                                              //       ),
+                                              //     ],
+                                              //   ),
+                                              // ),
+                                              SizedBox(height: 5),
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          bottomLeft:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      SizedBox(width: 15),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Transition speed',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ),
+
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsetsGeometry.only(
+                                                              right: 15,
+                                                            ),
+                                                        child: Slider(
+                                                          min: 0.0,
+
+                                                          max: 2.0,
+                                                          // overlayColor: Color.fromARGB(1, 218, 218, 218),
+                                                          activeColor:
+                                                              Color.fromARGB(
+                                                                255,
+                                                                218,
+                                                                218,
+                                                                218,
+                                                              ),
+                                                          inactiveColor:
+                                                              Color.fromARGB(
+                                                                255,
+                                                                218,
+                                                                218,
+                                                                218,
+                                                              ),
+                                                          value:
+                                                              transitionSpeed,
+                                                          onChanged: (value) {
+                                                            if (mounted) {
+                                                              setOverlayState(() {
+                                                                transitionSpeed =
+                                                                    value;
+                                                              });
+                                                              setState(() {
+                                                                transitionSpeed =
+                                                                    value;
+                                                              });
+                                                            }
+                                                            Database.setValue(
+                                                              "transitionSpeed",
+                                                              value,
+                                                            );
+                                                          },
+                                                          thumbColor:
+                                                              Colors.white,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+
+                                          SizedBox(height: 25),
+
+                                          Row(
+                                            children: [
+                                              SizedBox(width: 50),
+                                              Text(
+                                                'Functional',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 18,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          SizedBox(height: 15),
+                                          Column(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
+
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          topLeft:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                          topRight:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  child: Row(
+                                                    children: [
+                                                      SizedBox(width: 15),
+                                                      Expanded(
+                                                        child: Text(
+                                                          'Automatic sorting of tracks',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ),
+
+                                                      Padding(
+                                                        padding:
+                                                            EdgeInsetsGeometry.only(
+                                                              right: 15,
+                                                            ),
+
+                                                        child: Switch(
+                                                          value:
+                                                              autoTrackSorting,
+                                                          onChanged: (
+                                                            bool value,
+                                                          ) {
+                                                            if (mounted) {
+                                                              setState(() {
+                                                                autoTrackSorting =
+                                                                    value;
+                                                              });
+                                                              setOverlayState(() {
+                                                                autoTrackSorting =
+                                                                    value;
+                                                              });
+                                                            }
+
+                                                            if (autoTrackSorting) {
+                                                              Database.setValue(
+                                                                'autoTrackSorting',
+                                                                true,
+                                                              );
+                                                            } else {
+                                                              Database.setValue(
+                                                                'autoTrackSorting',
+                                                                false,
+                                                              );
+                                                            }
+                                                          },
+                                                          activeColor:
+                                                              const Color.fromARGB(
+                                                                255,
+                                                                34,
+                                                                34,
+                                                                34,
+                                                              ),
+                                                          activeTrackColor:
+                                                              Colors.grey[300],
+                                                          inactiveThumbColor:
+                                                              Colors.grey[300],
+                                                          inactiveTrackColor:
+                                                              const Color.fromARGB(
+                                                                255,
+                                                                34,
+                                                                34,
+                                                                34,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(height: 5),
+                                              Padding(
+                                                padding:
+                                                    EdgeInsetsGeometry.only(
+                                                      left: 10,
+                                                      right: 10,
+                                                    ),
+                                                child: Container(
+                                                  width: 500,
+                                                  height: 50,
+                                                  decoration: BoxDecoration(
+                                                    // color: themeColor,
+                                                    border: Border.all(
+                                                      width: 0.2,
+                                                      color: Colors.grey,
+                                                    ),
+
+                                                    borderRadius:
+                                                        BorderRadius.only(
+                                                          bottomLeft:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                          bottomRight:
+                                                              Radius.circular(
+                                                                10,
+                                                              ),
+                                                        ),
+                                                  ),
+                                                  child: InkWell(
+                                                    onTap: () {
+                                                      // player.stop();
+                                                      // _hidePlaylistOverlay();
+                                                      // _hideWarningMetadataOverlay();
+                                                      // _hideSettingsOverlay();
+                                                      Database.clear();
+                                                      Navigator.pop(context);
+                                                    },
+                                                    child: Row(
+                                                      children: [
+                                                        SizedBox(width: 15),
+                                                        Text(
+                                                          'Reset settings to default',
+                                                          style: TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 16,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+
+                                              // Container(
+                                              //   width: 500,
+                                              //   height: 50,
+                                              //   decoration: BoxDecoration(
+                                              //     // color: themeColor,
+                                              //     border: Border.all(
+                                              //       width: 0.2,
+                                              //       color: Colors.grey,
+                                              //     ),
+
+                                              //     borderRadius: BorderRadius.only(
+                                              //       topLeft: Radius.circular(10),
+                                              //       topRight: Radius.circular(10),
+                                              //       bottomLeft: Radius.circular(10),
+                                              //       bottomRight: Radius.circular(10),
+                                              //     ),
+                                              //   ),
+                                              //   child: Row(
+                                              //     children: [
+                                              //       SizedBox(width: 15),
+                                              //       Text(
+                                              //         'Metadata recognize',
+                                              //         style: TextStyle(
+                                              //           color: Colors.white,
+                                              //           fontSize: 16,
+                                              //         ),
+                                              //       ),
+                                              //       SizedBox(width: 255),
+                                              //       Switch(
+                                              //         value:
+                                              //             isMetadataRecognizeEnable,
+                                              //         onChanged: (bool value) {
+                                              //           if (mounted) {
+                                              //             setState(() {
+                                              //               isMetadataRecognizeEnable =
+                                              //                   value;
+                                              //             });
+                                              //             setOverlayState(() {
+                                              //               isMetadataRecognizeEnable =
+                                              //                   value;
+                                              //             });
+                                              //           }
+
+                                              //           if (isMetadataRecognizeEnable) {
+                                              //             Database.setValue(
+                                              //               'metadataRecognize',
+                                              //               true,
+                                              //             );
+                                              //           } else {
+                                              //             Database.setValue(
+                                              //               'metadataRecognize',
+                                              //               false,
+                                              //             );
+                                              //           }
+                                              //         },
+                                              //         activeColor:
+                                              //             const Color.fromARGB(
+                                              //               255,
+                                              //               34,
+                                              //               34,
+                                              //               34,
+                                              //             ),
+                                              //         activeTrackColor:
+                                              //             Colors.grey[300],
+                                              //         inactiveThumbColor:
+                                              //             Colors.grey[300],
+                                              //         inactiveTrackColor:
+                                              //             const Color.fromARGB(
+                                              //               255,
+                                              //               34,
+                                              //               34,
+                                              //               34,
+                                              //             ),
+                                              //       ),
+                                              //     ],
+                                              //   ),
+                                              // ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1421,6 +1654,7 @@ class _PlaylistPageState extends State<PlaylistPage>
   String? selectedFolderPath;
   String logPath = '';
 
+  double playerPadding = 0.0;
   double songProgress = 0.0;
   double volumeValue = 0.7;
   double transitionSpeed = 1.0;
@@ -1441,6 +1675,8 @@ class _PlaylistPageState extends State<PlaylistPage>
   bool isPlaylistAnimating = false;
   bool autoTrackSorting = true;
 
+  final ValueNotifier<int> nowPlayingIndexNotifier = ValueNotifier<int>(0);
+
   final player = AudioPlayer();
   final volumeController = InteractiveSliderController(0.0);
 
@@ -1459,6 +1695,7 @@ class _PlaylistPageState extends State<PlaylistPage>
   File? filePath;
 
   List<Map<String, dynamic>>? cachedPlaylist;
+  // late SMTCWindows smtc;
 
   // Working with additiongal songs that we can take from settings
   Future<void> addFolderToSongs() async {
@@ -1536,13 +1773,20 @@ class _PlaylistPageState extends State<PlaylistPage>
       } else {
         coverArtData = Uint8List(0);
       }
+      // smtc.updateMetadata(
+      //   MusicMetadata(
+      //     title: trackName,
+      //     album: 'almbu',
+      //     albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+      //     artist: trackArtistNames?.join(', ') ?? 'Unknown',
+      //   ),
+      // );
     });
   }
 
   // I was too lazy to make a class with an audio player, so we live like this for now
   Future<void> steps({
-  // Ну не надо, ну не стукай
-
+    // Ну не надо, ну не стукай
     bool nextStep = false,
     bool previousStep = false,
     bool stopSteps = false,
@@ -1557,8 +1801,11 @@ class _PlaylistPageState extends State<PlaylistPage>
       if (mounted) {
         setState(() {
           nowPlayingIndex++;
+          nowPlayingIndexNotifier.value = nowPlayingIndex;
+
           if (nowPlayingIndex >= songs.length) {
             nowPlayingIndex = 0;
+            nowPlayingIndexNotifier.value = 0;
           }
         });
       }
@@ -1632,6 +1879,7 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+      updateSMTC();
     }
 
     if (previousStep) {
@@ -1639,8 +1887,11 @@ class _PlaylistPageState extends State<PlaylistPage>
         setState(() {
           _currentToken?.cancel();
           nowPlayingIndex--;
+          nowPlayingIndexNotifier.value = nowPlayingIndex;
+
           if (nowPlayingIndex < 0) {
             nowPlayingIndex = songs.length - 1;
+            nowPlayingIndexNotifier.value = songs.length - 1;
           }
         });
       }
@@ -1678,6 +1929,8 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+
+      updateSMTC();
     }
 
     if (stopSteps) {
@@ -1687,7 +1940,9 @@ class _PlaylistPageState extends State<PlaylistPage>
 
           if (!isPlayling) {
             player.pause();
+            // smtc.setPlaybackStatus(PlaybackStatus.paused);
           } else {
+            // smtc.setPlaybackStatus(PlaybackStatus.playing);
             player.play(DeviceFileSource(songs[nowPlayingIndex]));
             Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
           }
@@ -1769,6 +2024,7 @@ class _PlaylistPageState extends State<PlaylistPage>
       }
 
       Database.setValue('lastPlaylistTrack', songs[nowPlayingIndex]);
+      updateSMTC();
     }
   }
 
@@ -1894,9 +2150,20 @@ class _PlaylistPageState extends State<PlaylistPage>
     });
   }
 
-  // Handling page loading
+  // Updating native media information
+  Future<void> updateSMTC() async {
+    // smtc.updateMetadata(
+    //   MusicMetadata(
+    //     title: trackName,
+    //     albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+    //     artist: trackArtistNames?.join(', ') ?? 'Unknown',
+    //   ),
+    // );
+  }
+
   @override
   void initState() {
+    // print(widget.lastSong);
     getApplicationDocumentsDirectory().then((value) {
       final logPath = '${value.path}/latestquarkaudio.log';
       initLogger(logPath).then((_) {});
@@ -1910,16 +2177,6 @@ class _PlaylistPageState extends State<PlaylistPage>
 
     Database.init();
     logger.info("Database initalizing...");
-
-    if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
-      logger.info("Last song initalizing...");
-
-      if (mounted) {
-        setState(() {
-          nowPlayingIndex = 0;
-        });
-      }
-    }
 
     // INITIALIZING PLAYLIST, INFO MESSAGE AND SETTINGS .... YOU KNOW
 
@@ -1971,30 +2228,15 @@ class _PlaylistPageState extends State<PlaylistPage>
       // As a crutch, we fill in an alternative playlist variable instead of the main widget.songs variable
       songs.add(PathManager.getnormalizePath(songList[i]));
     }
+
     Database.getValue('autoTrackSorting').then((value) {
       if (value != null && mounted) {
         setState(() {
           autoTrackSorting = value;
           if (value) {
             songs.sort();
-            nowPlayingIndex = 0;
             FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
-              if (mounted) {
-                setState(() {
-                  if (tags['trackName'] == '') {
-                    trackName = PathManager.getFileName(songs[nowPlayingIndex]);
-                  } else {
-                    trackName = tags['trackName'];
-                  }
-
-                  if (tags['trackArtistNames'][0] == "") {
-                    trackArtistNames = ['Unknown'];
-                  } else {
-                    trackArtistNames = tags['trackArtistNames'];
-                  }
-                  coverArtData = tags['albumArt'];
-                });
-              }
+              applyTagToPage(tags);
             });
           }
         });
@@ -2006,14 +2248,30 @@ class _PlaylistPageState extends State<PlaylistPage>
       var lastIndex = songs.indexWhere(
         (path) => path.endsWith(PathManager.getnormalizePath(widget.lastSong)),
       );
+      print(lastIndex);
+      print(widget.lastSong);
+      print(PathManager.getnormalizePath(widget.lastSong));
+      print(songs);
 
       if (lastIndex != -1) {
         if (mounted) {
           setState(() {
+            print('4242');
             nowPlayingIndex = lastIndex;
+            nowPlayingIndexNotifier.value = lastIndex;
           });
         }
       }
+      //   if (nowPlayingIndex < 0 || nowPlayingIndex >= songs.length) {
+      //   logger.info("Last song initalizing...");
+
+      //   if (mounted) {
+      //     setState(() {
+      //       print(nowPlayingIndex);
+      //       nowPlayingIndex = 0;
+      //     });
+      //   }
+      // }
     }
 
     FileTags.getTagsFromFile(songs[nowPlayingIndex]).then((tags) {
@@ -2067,6 +2325,7 @@ class _PlaylistPageState extends State<PlaylistPage>
     Database.getValue('lastPlaylist').then(
       (value) => logger.info("Last playlist: $value"),
     ); // Getting data from the table and set the values
+
     Database.getValue('volume').then(
       (volume) => {
         if (volume != null && mounted)
@@ -2117,6 +2376,7 @@ class _PlaylistPageState extends State<PlaylistPage>
         );
       }
     });
+
     Database.getValue("transitionSpeed").then((value) {
       if (value != null && mounted) {
         setState(() {
@@ -2130,6 +2390,53 @@ class _PlaylistPageState extends State<PlaylistPage>
         cachedPlaylist = value;
       });
     });
+
+    // smtc = SMTCWindows(
+    //   metadata: MusicMetadata(
+    //     title: trackName,
+    //     album: 'almbu',
+    //     albumArtist: trackArtistNames?.join(', ') ?? 'Unknown',
+    //     artist: trackArtistNames?.join(', ') ?? 'Unknown',
+    //   ),
+    //   // Which buttons to show in the OS media player
+    //   config: const SMTCConfig(
+    //     fastForwardEnabled: true,
+    //     nextEnabled: true,
+    //     pauseEnabled: true,
+    //     playEnabled: true,
+    //     rewindEnabled: true,
+    //     prevEnabled: true,
+    //     stopEnabled: true,
+    //   ),
+    // );
+
+    // WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //   try {
+    //     smtc.buttonPressStream.listen((event) {
+    //       switch (event) {
+    //         case PressedButton.play:
+    //           steps(stopSteps: true);
+    //           break;
+    //         case PressedButton.pause:
+    //           steps(stopSteps: true);
+    //           break;
+    //         case PressedButton.next:
+    //           steps(nextStep: true);
+    //           break;
+    //         case PressedButton.previous:
+    //           steps(previousStep: true);
+    //           break;
+    //         case PressedButton.stop:
+    //           smtc.disableSmtc();
+    //           break;
+    //         default:
+    //           break;
+    //       }
+    //     });
+      // } catch (e) {
+      //   debugPrint("Error: $e");
+      // }
+  
   }
 
   // Handling exit from player
@@ -2143,7 +2450,8 @@ class _PlaylistPageState extends State<PlaylistPage>
     playlistOverlayEntry?.remove();
     warningMetadataOverlayEntry?.remove();
     settingsOverlayEntry?.remove();
-
+    // smtc.disableSmtc();
+    // smtc.dispose();
     super.dispose();
   }
 
@@ -2157,17 +2465,14 @@ class _PlaylistPageState extends State<PlaylistPage>
         },
         child: Scaffold(
           backgroundColor: Colors.transparent,
-
           body: Row(
             children: [
               Container(
                 height: MediaQuery.of(context).size.height,
                 width: MediaQuery.of(context).size.width,
-
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: MemoryImage(coverArtData),
-
                     fit: BoxFit.cover,
                     colorFilter: ColorFilter.mode(
                       Colors.black.withOpacity(0.5),
@@ -2183,11 +2488,10 @@ class _PlaylistPageState extends State<PlaylistPage>
                     end: Alignment.bottomRight,
                   ),
                 ),
-
                 child: ClipRect(
                   child: AnimatedSwitcher(
                     duration: Duration(
-                      milliseconds: (750 * transitionSpeed).round(),
+                      milliseconds: (650 * transitionSpeed).round(),
                     ),
                     transitionBuilder: (
                       Widget child,
@@ -2197,584 +2501,345 @@ class _PlaylistPageState extends State<PlaylistPage>
                     },
                     child: BackdropFilter(
                       key: ValueKey<Uint8List>(coverArtData),
-
                       filter: ImageFilter.blur(sigmaX: 95.0, sigmaY: 95.0),
+                      child: AnimatedPadding(
+                        duration: Duration(
+                          milliseconds: (750 * transitionSpeed).round(),
+                        ),
+                        curve: Curves.ease,
+                        padding: EdgeInsets.only(left: playerPadding),
+                        child: Container(
+                          color: Colors.transparent,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                height: 250,
+                                width: 250,
+                                decoration: BoxDecoration(
+                                  image: DecorationImage(
+                                    image: MemoryImage(coverArtData),
+                                    fit: BoxFit.cover,
+                                    colorFilter: ColorFilter.mode(
+                                      Colors.black.withOpacity(0),
+                                      BlendMode.darken,
+                                    ),
+                                  ),
 
-                      child: Container(
-                        color: Colors.transparent,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: albumArtShadowColor,
+                                      blurRadius: 10,
+                                      offset: Offset(5, 10),
+                                    ),
+                                  ],
+                                ),
+                              ),
 
-                          children: [
-                            Container(
-                              height: 250,
-                              width: 250,
-                              decoration: BoxDecoration(
-                                image: DecorationImage(
-                                  image: MemoryImage(coverArtData),
-                                  fit: BoxFit.cover,
-                                  colorFilter: ColorFilter.mode(
-                                    Colors.black.withOpacity(0),
-                                    BlendMode.darken,
+                              SizedBox(height: 35),
+
+                              SizedBox(
+                                width: 500,
+
+                                child: SizedBox(
+                                  height: 45,
+                                  child: Text(
+                                    PathManager.getFileName(trackName),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
+                              ),
 
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: albumArtShadowColor,
-                                    blurRadius: 10,
-                                    offset: Offset(5, 10),
+                              Text(
+                                trackArtistNames?.join(', ') ?? 'Unknown',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w300,
+                                ),
+                              ),
+
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    currentPosition,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+
+                                  SizedBox(
+                                    width: 325,
+
+                                    child: InteractiveSlider(
+                                      controller: volumeController,
+                                      unfocusedHeight: 5,
+                                      focusedHeight: 10,
+                                      min: 0.0,
+                                      max: 100.0,
+                                      onProgressUpdated: (value) async {
+                                        isSliderActive = true;
+                                        try {
+                                          final seconds =
+                                              await getSecondsByValue(value);
+                                          await player.seek(
+                                            Duration(seconds: seconds),
+                                          );
+                                        } catch (e) {
+                                          logger.warning(
+                                            "Error while seeking duration: $e",
+                                          );
+                                        }
+                                      },
+
+                                      brightness: Brightness.light,
+                                      initialProgress: songProgress,
+                                      iconColor: Colors.white,
+                                      gradient: LinearGradient(
+                                        colors: [Colors.white, Colors.white],
+                                      ),
+                                      shapeBorder: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(8),
+                                        ),
+                                      ),
+
+                                      onFocused:
+                                          (value) => {isSliderActive = false},
+                                    ),
+                                  ),
+
+                                  Text(
+                                    songDurationWidget,
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w300,
+                                    ),
                                   ),
                                 ],
                               ),
-                            ),
 
-                            SizedBox(height: 35),
+                              SizedBox(height: 5),
 
-                            SizedBox(
-                              width: 500,
-
-                              child: SizedBox(
-                                height: 45,
-                                child: Text(
-                                PathManager.getFileName(trackName),
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )),
-                            ),
-
-                            Text(
-                              trackArtistNames?.join(', ') ?? 'Unknown',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w300,
-                              ),
-                            ),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  currentPosition,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w300,
-                                  ),
-                                ),
-
-                                SizedBox(
-                                  width: 325,
-
-                                  child: InteractiveSlider(
-                                    controller: volumeController,
-                                    unfocusedHeight: 5,
-                                    focusedHeight: 10,
-                                    min: 0.0,
-                                    max: 100.0,
-                                    onProgressUpdated: (value) async {
-                                      isSliderActive = true;
-                                      try {
-                                        final seconds = await getSecondsByValue(
-                                          value,
-                                        );
-                                        await player.seek(
-                                          Duration(seconds: seconds),
-                                        );
-                                      } catch (e) {
-                                        logger.warning(
-                                          "Error while seeking duration: $e",
-                                        );
-                                      }
-                                    },
-
-                                    brightness: Brightness.light,
-                                    initialProgress: songProgress,
-                                    iconColor: Colors.white,
-                                    gradient: LinearGradient(
-                                      colors: [Colors.white, Colors.white],
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // PREVIOUS BUTTON
+                                  Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(20),
                                     ),
-                                    shapeBorder: RoundedRectangleBorder(
+
+                                    child: InkWell(
                                       borderRadius: BorderRadius.all(
-                                        Radius.circular(8),
+                                        Radius.circular(10),
                                       ),
-                                    ),
+                                      onTap: () async {
+                                        await steps(previousStep: true);
+                                      },
 
-                                    onFocused:
-                                        (value) => {isSliderActive = false},
-                                  ),
-                                ),
+                                      child: Container(
+                                        height: 40,
+                                        width: 40,
 
-                                Text(
-                                  songDurationWidget,
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w300,
-                                  ),
-                                ),
-                              ],
-                            ),
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.skip_previous,
 
-                            SizedBox(height: 5),
-
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // PREVIOUS BUTTON
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
-                                  ),
-
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
-                                    ),
-                                    onTap: () async {
-                                      await steps(previousStep: true);
-                                    },
-
-                                    child: Container(
-                                      height: 40,
-                                      width: 40,
-
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
-
-                                        // color: const Color.fromARGB(
-                                        //   255,
-                                        //   40,
-                                        //   40,
-                                        //   42,
-                                        // ),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
+                                              color:
+                                                  isWhiteTheme
+                                                      ? alternativeThemeColor
+                                                      : Colors.white,
+                                              size: 24,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.skip_previous,
-
-                                            color:
-                                                isWhiteTheme
-                                                    ? alternativeThemeColor
-                                                    : Colors.white,
-                                            size: 24,
-                                          ),
-                                        ],
-                                      ),
                                     ),
                                   ),
-                                ),
 
-                                // // PREVIOUS BUTTON
-                                SizedBox(width: 15),
+                                  // // PREVIOUS BUTTON
+                                  SizedBox(width: 15),
 
-                                // PLAY BUTTON
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
-                                  ),
-
-                                  child: InkWell(
+                                  // PLAY BUTTON
+                                  Material(
+                                    color: Colors.transparent,
                                     borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
+                                      Radius.circular(20),
                                     ),
-                                    onTap: () async {
-                                      await steps(stopSteps: true);
-                                    },
 
-                                    child: Container(
-                                      height: 50,
-                                      width: 50,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(10),
+                                      ),
+                                      onTap: () async {
+                                        await steps(stopSteps: true);
+                                      },
 
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
-                                        // color: const Color.fromARGB(
-                                        //   255,
-                                        //   40,
-                                        //   40,
-                                        //   42,
-                                        // ),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
+                                      child: Container(
+                                        height: 50,
+                                        width: 50,
+
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              isPlayling
+                                                  ? Icons.pause
+                                                  : Icons.play_arrow,
+                                              color:
+                                                  isWhiteTheme
+                                                      ? alternativeThemeColor
+                                                      : Colors.white,
+
+                                              size: 28,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            isPlayling
-                                                ? Icons.pause
-                                                : Icons.play_arrow,
-                                            color:
-                                                isWhiteTheme
-                                                    ? alternativeThemeColor
-                                                    : Colors.white,
-
-                                            size: 28,
-                                          ),
-                                        ],
-                                      ),
                                     ),
                                   ),
-                                ),
 
-                                // // PLAY BUTTON
-                                SizedBox(width: 15),
+                                  // // PLAY BUTTON
+                                  SizedBox(width: 15),
 
-                                // NEXT SONG BUTTON
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
-                                  ),
-
-                                  child: InkWell(
+                                  // NEXT SONG BUTTON
+                                  Material(
+                                    color: Colors.transparent,
                                     borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
+                                      Radius.circular(20),
                                     ),
-                                    onTap: () async {
-                                      await steps(nextStep: true);
-                                    },
-                                    child: Container(
-                                      height: 40,
-                                      width: 40,
 
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(10),
+                                      ),
+                                      onTap: () async {
+                                        await steps(nextStep: true);
+                                      },
+                                      child: Container(
+                                        height: 40,
+                                        width: 40,
 
-                                        // color: const Color.fromARGB(
-                                        //   255,
-                                        //   40,
-                                        //   40,
-                                        //   42,
-                                        // ),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.skip_next,
+                                              color:
+                                                  isWhiteTheme
+                                                      ? alternativeThemeColor
+                                                      : Colors.white,
+
+                                              size: 24,
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.skip_next,
-                                            color:
-                                                isWhiteTheme
-                                                    ? alternativeThemeColor
-                                                    : Colors.white,
-
-                                            size: 24,
-                                          ),
-                                        ],
-                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-
-                            // // NEXT SONG BUTTON
-                            SizedBox(height: 5),
-
-                            // VOLUME SLIDER
-                            SizedBox(
-                              width: 325,
-
-                              child: InteractiveSlider(
-                                startIcon: const Icon(Icons.volume_down),
-                                endIcon: const Icon(Icons.volume_up),
-                                min: 0.0,
-                                max: 1.0,
-                                brightness: Brightness.light,
-                                initialProgress: volumeValue,
-                                iconColor: Colors.white,
-                                gradient: LinearGradient(
-                                  colors: [Colors.white, Colors.white],
-                                ),
-                                onChanged: (value) => changeVolume(value),
+                                ],
                               ),
-                            ),
 
-                            // // VOLUME SLIDER
-                            SizedBox(height: 20),
+                              // // NEXT SONG BUTTON
+                              SizedBox(height: 5),
 
-                            // BUTTONS ROW
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                // PLAYLIST BUTTON
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
+                              // VOLUME SLIDER
+                              SizedBox(
+                                width: 325,
+
+                                child: InteractiveSlider(
+                                  startIcon: const Icon(Icons.volume_down),
+                                  endIcon: const Icon(Icons.volume_up),
+                                  min: 0.0,
+                                  max: 1.0,
+                                  brightness: Brightness.light,
+                                  initialProgress: volumeValue,
+                                  iconColor: Colors.white,
+                                  gradient: LinearGradient(
+                                    colors: [Colors.white, Colors.white],
                                   ),
-
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
-                                    ),
-                                    splashColor: Colors.transparent,
-                                    highlightColor: Color.fromARGB(
-                                      255,
-                                      40,
-                                      40,
-                                      42,
-                                    ),
-                                    onTap: _showPlaylistOverlay,
-                                    child: Container(
-                                      height: 35,
-                                      width: 35,
-
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
-
-                                        // color: const Color.fromARGB(
-                                        //   255,
-                                        //   40,
-                                        //   40,
-                                        //   42,
-                                        // ),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
-                                        ),
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.featured_play_list_outlined,
-                                            color:
-                                                isPlaylistOpened
-                                                    ? Color.fromRGBO(
-                                                      255,
-                                                      255,
-                                                      255,
-                                                      1,
-                                                    )
-                                                    : Color.fromRGBO(
-                                                      255,
-                                                      255,
-                                                      255,
-                                                      0.500,
-                                                    ),
-                                            size: 20,
-                                            key: ValueKey<bool>(
-                                              isPlaylistOpened,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
+                                  onChanged: (value) => changeVolume(value),
                                 ),
+                              ),
 
-                                // //PLAYLIST BUTTON
-                                SizedBox(width: 15),
+                              // // VOLUME SLIDER
+                              SizedBox(height: 20),
 
-                                // SHUFFLITAS
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
-                                  ),
-
-                                  child: InkWell(
-                                    splashColor: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(10),
-                                    highlightColor: Color.fromARGB(
-                                      255,
-                                      40,
-                                      40,
-                                      42,
-                                    ),
-
-                                    onTap: () async {
-                                      if (mounted) {
-                                        setState(() {
-                                          isShuffleEnable = !isShuffleEnable;
-                                        });
-                                      }
-
-                                      if (isShuffleEnable == true) {
-                                        await createNewShuffledPlaylist(
-                                          turnOnShuffle: true,
-                                        );
-                                      }
-                                      if (isShuffleEnable == false) {
-                                        await createNewShuffledPlaylist(
-                                          turnOffShuffle: true,
-                                        );
-                                      }
-                                      _hidePlaylistOverlay();
-                                    },
-
-                                    child: Container(
-                                      height: 35,
-                                      width: 35,
-
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
-
-                                        // color: Color.fromARGB(255, 40, 40, 42),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
-                                        ),
-                                      ),
-
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          AnimatedSwitcher(
-                                            duration: Duration(
-                                              milliseconds: 120,
-                                            ),
-                                            transitionBuilder: (
-                                              child,
-                                              animation,
-                                            ) {
-                                              return FadeTransition(
-                                                opacity: animation,
-                                                child: child,
-                                              );
-                                            },
-                                            layoutBuilder:
-                                                (
-                                                  currentChild,
-                                                  previousChildren,
-                                                ) => Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    ...previousChildren,
-                                                    if (currentChild != null)
-                                                      currentChild,
-                                                  ],
-                                                ),
-                                            child: Icon(
-                                              isShuffleEnable
-                                                  ? Icons.shuffle
-                                                  : Icons.shuffle_outlined,
-                                              key: ValueKey<bool>(
-                                                isShuffleEnable,
-                                              ),
-                                              color:
-                                                  isShuffleEnable
-                                                      ? Color.fromRGBO(
-                                                        255,
-                                                        255,
-                                                        255,
-                                                        1,
-                                                      )
-                                                      : Color.fromRGBO(
-                                                        255,
-                                                        255,
-                                                        255,
-                                                        0.5,
-                                                      ),
-                                              size: 20,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                // // SHUFFLITAS
-                                SizedBox(width: 75),
-
-                                // REPEATER BUTTON
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
-                                  ),
-
-                                  child: InkWell(
+                              // BUTTONS ROW
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  // PLAYLIST BUTTON
+                                  Material(
+                                    color: Colors.transparent,
                                     borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
+                                      Radius.circular(20),
                                     ),
-                                    splashColor: Colors.transparent,
-                                    highlightColor: Color.fromARGB(
-                                      255,
-                                      40,
-                                      40,
-                                      42,
-                                    ),
-                                    onTap: () {
-                                      if (mounted) {
-                                        setState(() {
-                                          isRepeatEnable = !isRepeatEnable;
-                                        });
-                                      }
-                                    },
-                                    child: Container(
-                                      height: 35,
-                                      width: 35,
 
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
-
-                                        // color: const Color.fromARGB(
-                                        //   255,
-                                        //   40,
-                                        //   40,
-                                        //   42,
-                                        // ),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
-                                        ),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(10),
                                       ),
+                                      splashColor: Colors.transparent,
+                                      highlightColor: Color.fromARGB(
+                                        255,
+                                        40,
+                                        40,
+                                        42,
+                                      ),
+                                      onTap: _showPlaylistOverlay,
+                                      child: Container(
+                                        height: 35,
+                                        width: 35,
 
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          AnimatedSwitcher(
-                                            duration: Duration(
-                                              milliseconds: 120,
-                                            ),
-                                            transitionBuilder: (
-                                              child,
-                                              animation,
-                                            ) {
-                                              return FadeTransition(
-                                                opacity: animation,
-                                                child: child,
-                                              );
-                                            },
-                                            layoutBuilder:
-                                                (
-                                                  currentChild,
-                                                  previousChildren,
-                                                ) => Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    ...previousChildren,
-                                                    if (currentChild != null)
-                                                      currentChild,
-                                                  ],
-                                                ),
-
-                                            child: Icon(
-                                              Icons.repeat_one_outlined,
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.featured_play_list_outlined,
                                               color:
-                                                  isRepeatEnable
+                                                  isPlaylistOpened
                                                       ? Color.fromRGBO(
                                                         255,
                                                         255,
@@ -2789,79 +2854,279 @@ class _PlaylistPageState extends State<PlaylistPage>
                                                       ),
                                               size: 20,
                                               key: ValueKey<bool>(
-                                                isRepeatEnable,
+                                                isPlaylistOpened,
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                // // REPEATER BUTTON
-                                SizedBox(width: 15),
-
-                                // MENU BUTTON
-                                Material(
-                                  color: Colors.transparent,
-                                  borderRadius: BorderRadius.all(
-                                    Radius.circular(20),
-                                  ),
-
-                                  child: InkWell(
-                                    borderRadius: BorderRadius.all(
-                                      Radius.circular(10),
-                                    ),
-                                    splashColor: Colors.transparent,
-                                    highlightColor: Color.fromARGB(
-                                      255,
-                                      40,
-                                      40,
-                                      42,
-                                    ),
-                                    onTap: _showSettingsOverlay,
-                                    child: Container(
-                                      height: 35,
-                                      width: 35,
-
-                                      decoration: BoxDecoration(
-                                        color: themeColor,
-
-                                        // color: const Color.fromARGB(
-                                        //   255,
-                                        //   40,
-                                        //   40,
-                                        //   42,
-                                        // ),
-                                        borderRadius: BorderRadius.all(
-                                          Radius.circular(30),
+                                          ],
                                         ),
                                       ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.menu,
-                                            color:
-                                                isWhiteTheme
-                                                    ? alternativeThemeColor
-                                                    : Colors.white,
+                                    ),
+                                  ),
 
-                                            size: 20,
+                                  // //PLAYLIST BUTTON
+                                  SizedBox(width: 15),
+
+                                  // SHUFFLITAS
+                                  Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(20),
+                                    ),
+
+                                    child: InkWell(
+                                      splashColor: Colors.transparent,
+                                      borderRadius: BorderRadius.circular(10),
+                                      highlightColor: Color.fromARGB(
+                                        255,
+                                        40,
+                                        40,
+                                        42,
+                                      ),
+
+                                      onTap: () async {
+                                        if (mounted) {
+                                          setState(() {
+                                            isShuffleEnable = !isShuffleEnable;
+                                          });
+                                        }
+
+                                        if (isShuffleEnable == true) {
+                                          await createNewShuffledPlaylist(
+                                            turnOnShuffle: true,
+                                          );
+                                        }
+                                        if (isShuffleEnable == false) {
+                                          await createNewShuffledPlaylist(
+                                            turnOffShuffle: true,
+                                          );
+                                        }
+                                        _hidePlaylistOverlay();
+                                      },
+
+                                      child: Container(
+                                        height: 35,
+                                        width: 35,
+
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
                                           ),
-                                        ],
+                                        ),
+
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            AnimatedSwitcher(
+                                              duration: Duration(
+                                                milliseconds: 120,
+                                              ),
+                                              transitionBuilder: (
+                                                child,
+                                                animation,
+                                              ) {
+                                                return FadeTransition(
+                                                  opacity: animation,
+                                                  child: child,
+                                                );
+                                              },
+                                              layoutBuilder:
+                                                  (
+                                                    currentChild,
+                                                    previousChildren,
+                                                  ) => Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      ...previousChildren,
+                                                      if (currentChild != null)
+                                                        currentChild,
+                                                    ],
+                                                  ),
+                                              child: Icon(
+                                                isShuffleEnable
+                                                    ? Icons.shuffle
+                                                    : Icons.shuffle_outlined,
+                                                key: ValueKey<bool>(
+                                                  isShuffleEnable,
+                                                ),
+                                                color:
+                                                    isShuffleEnable
+                                                        ? Color.fromRGBO(
+                                                          255,
+                                                          255,
+                                                          255,
+                                                          1,
+                                                        )
+                                                        : Color.fromRGBO(
+                                                          255,
+                                                          255,
+                                                          255,
+                                                          0.5,
+                                                        ),
+                                                size: 20,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
 
-                                // // MENU BUTTON
-                              ],
-                            ),
-                            // // BUTTONS ROW
-                          ],
+                                  // // SHUFFLITAS
+                                  SizedBox(width: 75),
+
+                                  // REPEATER BUTTON
+                                  Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(20),
+                                    ),
+
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(10),
+                                      ),
+                                      splashColor: Colors.transparent,
+                                      highlightColor: Color.fromARGB(
+                                        255,
+                                        40,
+                                        40,
+                                        42,
+                                      ),
+                                      onTap: () {
+                                        if (mounted) {
+                                          setState(() {
+                                            isRepeatEnable = !isRepeatEnable;
+                                          });
+                                        }
+                                      },
+                                      child: Container(
+                                        height: 35,
+                                        width: 35,
+
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
+                                          ),
+                                        ),
+
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            AnimatedSwitcher(
+                                              duration: Duration(
+                                                milliseconds: 120,
+                                              ),
+                                              transitionBuilder: (
+                                                child,
+                                                animation,
+                                              ) {
+                                                return FadeTransition(
+                                                  opacity: animation,
+                                                  child: child,
+                                                );
+                                              },
+                                              layoutBuilder:
+                                                  (
+                                                    currentChild,
+                                                    previousChildren,
+                                                  ) => Stack(
+                                                    alignment: Alignment.center,
+                                                    children: [
+                                                      ...previousChildren,
+                                                      if (currentChild != null)
+                                                        currentChild,
+                                                    ],
+                                                  ),
+
+                                              child: Icon(
+                                                Icons.repeat_one_outlined,
+                                                color:
+                                                    isRepeatEnable
+                                                        ? Color.fromRGBO(
+                                                          255,
+                                                          255,
+                                                          255,
+                                                          1,
+                                                        )
+                                                        : Color.fromRGBO(
+                                                          255,
+                                                          255,
+                                                          255,
+                                                          0.500,
+                                                        ),
+                                                size: 20,
+                                                key: ValueKey<bool>(
+                                                  isRepeatEnable,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // // REPEATER BUTTON
+                                  SizedBox(width: 15),
+
+                                  // MENU BUTTON
+                                  Material(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.all(
+                                      Radius.circular(20),
+                                    ),
+
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.all(
+                                        Radius.circular(10),
+                                      ),
+                                      splashColor: Colors.transparent,
+                                      highlightColor: Color.fromARGB(
+                                        255,
+                                        40,
+                                        40,
+                                        42,
+                                      ),
+                                      onTap: _showSettingsOverlay,
+                                      child: Container(
+                                        height: 35,
+                                        width: 35,
+
+                                        decoration: BoxDecoration(
+                                          color: themeColor,
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(30),
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.menu,
+                                              color:
+                                                  isWhiteTheme
+                                                      ? alternativeThemeColor
+                                                      : Colors.white,
+
+                                              size: 20,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // // MENU BUTTON
+                                ],
+                              ),
+                              // // BUTTONS ROW
+                            ],
+                          ),
                         ),
                       ),
                     ),
